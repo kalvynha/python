@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: "Lexend", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(ellipse at top, #e0f2fe, #f0f9ff 60%, #ffffff);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .btn-kid {
+    @apply inline-flex items-center justify-center rounded-2xl px-6 py-4 text-xl font-semibold shadow-md active:scale-95 transition;
+  }
+  .btn-primary {
+    @apply btn-kid bg-sky-500 text-white hover:bg-sky-600;
+  }
+  .btn-ghost {
+    @apply btn-kid bg-white text-slate-800 border-2 border-slate-200 hover:border-sky-400;
+  }
+}
+
+/* Dyslexia-friendly toggle (added via data attribute on <html>) */
+html[data-font="dyslexic"] body {
+  font-family: "OpenDyslexic", "Lexend", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
