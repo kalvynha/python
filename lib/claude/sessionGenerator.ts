@@ -1,4 +1,3 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import { cachedSystemBlocks, getAnthropic, MODEL_FAST } from "./client";
 import { GeneratedSession, type GeneratedProblem } from "./schemas";
 import { MATH_SKILLS } from "../curriculum/math.seed";
@@ -10,30 +9,63 @@ import { SPELLING_SKILLS } from "../curriculum/spelling.seed";
  */
 const SYSTEM_PROMPT = `
 You design short practice sessions for children aged 6-10, focused on math
-and English spelling. You are given a kid's current level, weak skill tags,
-a list of items due for review, requested subject mix, and duration budget.
+and English spelling. You receive a kid's level, weak skill tags, due items,
+requested subject mix, and duration budget.
 
-RULES (must follow exactly):
-1. Output STRICT JSON matching the schema: { "problems": [...] }.
-2. Each problem has: id, type, skillTag, prompt, expected, hintLadder.
-3. Types:
+RULES:
+1. Always respond by calling the "emit_session" tool with structured input.
+2. Types:
    - "math_arith": prompt is a math expression like "12 + 7"; expected is the numeric answer as a string.
-   - "spelling_audio": prompt is the single word the child must spell; include a short kid-friendly sentence using it.
-   - "spelling_visual": prompt is the single word the child must spell; include an imageHint (2-4 words) usable to pick a clipart icon.
-4. Use friendly, age-appropriate language. Never include proper nouns, violent imagery, or topics outside school math/spelling.
-5. Interleave types when the subjectMix is balanced. If a skill is marked weak or due, include items for that skill first.
-6. Each problem must have a 1-3 step hintLadder, increasingly concrete.
-7. Do not repeat the same prompt twice in one session.
-8. Limit total problems to what fits the duration at ~30 seconds per item.
-9. HARD CAP: never emit more than 20 problems. Prefer 10-15.
-10. Keep strings short: prompts <= 30 chars, sentences <= 60 chars, each hint <= 80 chars. No line breaks inside strings.
-11. End your response with the closing brace and nothing else.
+   - "spelling_audio": prompt is a single target word; sentence is a short kid-friendly sentence using it.
+   - "spelling_visual": prompt is a single target word; imageHint is 2-4 words describing a clipart.
+3. Never include proper nouns, violent imagery, or topics outside school math/spelling.
+4. Interleave types when the subjectMix is balanced. Prioritize weak/due skills.
+5. Each problem gets a 1-3 step hintLadder, increasingly concrete.
+6. Never repeat the same prompt. Keep 10-15 problems total, 20 max.
+7. Short strings only: prompts <= 30 chars, sentences <= 60 chars, hints <= 80 chars.
 
 Known skill taxonomy (tag -> short description):
 ${[...MATH_SKILLS, ...SPELLING_SKILLS]
   .map((s) => `- ${s.tag}: ${s.name} (difficulty ${s.difficulty})`)
   .join("\n")}
 `.trim();
+
+const EMIT_SESSION_TOOL = {
+  name: "emit_session",
+  description: "Emit the final practice session as structured data.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      problems: {
+        type: "array",
+        minItems: 1,
+        maxItems: 20,
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            type: {
+              type: "string",
+              enum: ["math_arith", "spelling_audio", "spelling_visual"],
+            },
+            skillTag: { type: "string" },
+            prompt: { type: "string" },
+            expected: { type: "string" },
+            sentence: { type: "string" },
+            imageHint: { type: "string" },
+            hintLadder: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: 3,
+            },
+          },
+          required: ["id", "type", "skillTag", "prompt", "expected", "hintLadder"],
+        },
+      },
+    },
+    required: ["problems"],
+  },
+};
 
 export interface SessionGenInput {
   kid: { age: number; displayName: string };
@@ -64,6 +96,8 @@ export async function generateSession(
     model: MODEL_FAST,
     max_tokens: 4096,
     system: cachedSystemBlocks(SYSTEM_PROMPT),
+    tools: [EMIT_SESSION_TOOL],
+    tool_choice: { type: "tool", name: "emit_session" },
     messages: [
       {
         role: "user",
@@ -71,7 +105,7 @@ export async function generateSession(
           {
             type: "text",
             text:
-              "Generate a practice session for this child. Respond with JSON only.\n\n" +
+              "Generate a practice session for this child by calling emit_session.\n\n" +
               userMessage,
           },
         ],
@@ -79,14 +113,13 @@ export async function generateSession(
     ],
   });
 
-  const text = resp.content
-    .filter((c): c is Anthropic.TextBlock => c.type === "text")
-    .map((c) => c.text)
-    .join("")
-    .trim();
-
-  const json = extractJson(text);
-  const parsed = GeneratedSession.parse(json);
+  const toolUse = resp.content.find(
+    (c): c is Extract<typeof c, { type: "tool_use" }> => c.type === "tool_use"
+  );
+  if (!toolUse) {
+    throw new Error("Model did not call emit_session");
+  }
+  const parsed = GeneratedSession.parse(toolUse.input);
 
   return {
     problems: parsed.problems,
@@ -98,44 +131,4 @@ export async function generateSession(
           .cache_read_input_tokens,
     },
   };
-}
-
-/**
- * Extract the first complete {...} JSON block from Claude's output.
- * Tracks brace balance while respecting strings/escapes so it stops at
- * the matching closing brace rather than any stray "}" in prose.
- */
-function extractJson(text: string): unknown {
-  const start = text.indexOf("{");
-  if (start < 0) throw new Error("No JSON object in response");
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (ch === "\\" && inString) {
-      escaped = true;
-      continue;
-    }
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (inString) continue;
-    if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) {
-        return JSON.parse(text.slice(start, i + 1));
-      }
-    }
-  }
-  throw new Error(
-    "Truncated JSON from model (output cut off before closing brace)"
-  );
 }

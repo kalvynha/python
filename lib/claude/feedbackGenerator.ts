@@ -1,4 +1,3 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import { cachedSystemBlocks, getAnthropic, MODEL_SMART } from "./client";
 import { FeedbackResult } from "./schemas";
 
@@ -6,7 +5,7 @@ const SYSTEM_PROMPT = `
 You write kind, specific, evidence-based feedback on a child's short
 math/spelling practice session.
 
-OUTPUT: strict JSON with fields:
+Always respond by calling the "emit_feedback" tool with three fields:
 - kidSummary: 1-3 sentences, warm and encouraging, aimed at a 6-10 year old.
   Celebrate one specific win. Suggest one skill to focus on next, in simple
   words. No shaming, no generic praise like "great job!".
@@ -19,6 +18,24 @@ OUTPUT: strict JSON with fields:
 
 Tone: concise, specific, evidence-first, never judgmental.
 `.trim();
+
+const EMIT_FEEDBACK_TOOL = {
+  name: "emit_feedback",
+  description: "Emit the structured feedback summary.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      kidSummary: { type: "string", minLength: 1, maxLength: 500 },
+      parentSummary: { type: "string", minLength: 1, maxLength: 1500 },
+      focusSkills: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 6,
+      },
+    },
+    required: ["kidSummary", "parentSummary", "focusSkills"],
+  },
+};
 
 export interface FeedbackInput {
   kid: { displayName: string; age: number };
@@ -51,8 +68,10 @@ export async function generateFeedback(
 
   const resp = await client.messages.create({
     model: MODEL_SMART,
-    max_tokens: 800,
+    max_tokens: 1200,
     system: cachedSystemBlocks(SYSTEM_PROMPT),
+    tools: [EMIT_FEEDBACK_TOOL],
+    tool_choice: { type: "tool", name: "emit_feedback" },
     messages: [
       {
         role: "user",
@@ -60,7 +79,7 @@ export async function generateFeedback(
           {
             type: "text",
             text:
-              "Write feedback for this session. Respond with JSON only.\n\n" +
+              "Write feedback for this session by calling emit_feedback.\n\n" +
               JSON.stringify(input, null, 2),
           },
         ],
@@ -68,16 +87,13 @@ export async function generateFeedback(
     ],
   });
 
-  const text = resp.content
-    .filter((c): c is Anthropic.TextBlock => c.type === "text")
-    .map((c) => c.text)
-    .join("")
-    .trim();
-
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end < 0) throw new Error("No JSON in feedback response");
-  const parsed = FeedbackResult.parse(JSON.parse(text.slice(start, end + 1)));
+  const toolUse = resp.content.find(
+    (c): c is Extract<typeof c, { type: "tool_use" }> => c.type === "tool_use"
+  );
+  if (!toolUse) {
+    throw new Error("Model did not call emit_feedback");
+  }
+  const parsed = FeedbackResult.parse(toolUse.input);
 
   return {
     ...parsed,
