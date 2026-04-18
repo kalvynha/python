@@ -45,7 +45,7 @@ interface KidDetailData {
   stats: KidStats;
   weekly: Array<{ day: string; accuracy: number; count: number }>;
   skillLevels: SkillLevelRow[];
-  latestFeedback: { kidSummary: string; parentSummary: string } | null;
+  latestFeedback: { parentSummary: string } | null;
 }
 
 const EMPTY: KidDetailData = {
@@ -108,10 +108,20 @@ export default function KidDetailPage({
     <PinGate>
       <NavBar backTo="/dashboard" backLabel="Dashboard" />
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="text-3xl font-bold">
-          {data.kid?.displayName ?? "Kid"}
-        </h1>
-        <p className="text-slate-500">Age {data.kid?.age}</p>
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold">
+              {data.kid?.displayName ?? "Kid"}
+            </h1>
+            <p className="text-slate-500">Age {data.kid?.age}</p>
+          </div>
+          <a
+            href={`/dashboard/kids/${kidId}/sessions`}
+            className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:border-sky-400"
+          >
+            All sessions →
+          </a>
+        </div>
 
         <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
@@ -166,20 +176,14 @@ export default function KidDetailPage({
         </section>
 
         <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-          <h2 className="font-semibold">Latest AI feedback</h2>
+          <h2 className="font-semibold">Latest AI report</h2>
           {data.latestFeedback ? (
-            <>
-              <p className="mt-3 whitespace-pre-line text-slate-700">
-                <strong>For you:</strong> {data.latestFeedback.parentSummary}
-              </p>
-              <p className="mt-3 text-slate-700">
-                <strong>For your child:</strong>{" "}
-                {data.latestFeedback.kidSummary}
-              </p>
-            </>
+            <p className="mt-3 whitespace-pre-line text-slate-700">
+              {data.latestFeedback.parentSummary}
+            </p>
           ) : (
             <p className="mt-2 text-slate-500">
-              No sessions yet. Have them run a practice session to see feedback.
+              No sessions yet. Have them run a practice session to see a report.
             </p>
           )}
         </section>
@@ -375,7 +379,6 @@ async function loadKidData(uid: string, kidId: string): Promise<KidDetailData> {
     );
     if (fb.exists()) {
       latestFeedback = {
-        kidSummary: fb.data()!.kidSummary,
         parentSummary: fb.data()!.parentSummary,
       };
       break;

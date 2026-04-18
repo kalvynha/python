@@ -2,28 +2,14 @@ import { cachedSystemBlocks, getAnthropic, MODEL_SMART } from "./client";
 import { FeedbackResult } from "./schemas";
 
 const SYSTEM_PROMPT = `
-You write kind, specific, evidence-based feedback on a child's short
-math/spelling practice session. The input includes the child's age —
-tune the kidSummary's vocabulary and length to it.
+You write a tight, plain-English report for a parent on their child's
+short math/spelling practice session. The kid never sees this — write
+for an adult, in plain language.
 
-Always respond by calling the "emit_feedback" tool with three fields:
+Always respond by calling the "emit_feedback" tool with two fields:
 
-- kidSummary: short, warm, and addressed directly to the child ("you").
-  Celebrate one specific thing they did well (name the skill in plain
-  words, never the raw tag — say "adding numbers up to 20", not
-  "add_within_20"). Gently name one thing to practice next. No shaming,
-  no generic praise like "great job!", no emoji beyond one at the end.
-  Adapt to age:
-    * Age 6-7: 1-2 very short sentences, only common words (1-2
-      syllables). Example: "You crushed your 10+ adds! Next time we
-      can practice silent e words like cake and home."
-    * Age 8-9: 2-3 sentences, simple-but-varied words. May reference
-      a pattern, e.g. "You got tricked by words with ie vs ei".
-    * Age 10: 2-3 sentences, can use slightly richer vocabulary and
-      one metaphor. Still no jargon.
-
-- parentSummary: Tight, plain-English report for a parent — **max
-  120 words**. Write 3 short paragraphs separated by blank lines:
+- parentSummary: **max 120 words**. Three short paragraphs separated
+  by blank lines:
     1. **What went well.** One sentence naming a specific strength
        (with a word/problem example).
     2. **Where they struggled.** One sentence naming a specific
@@ -51,7 +37,6 @@ const EMIT_FEEDBACK_TOOL = {
   input_schema: {
     type: "object" as const,
     properties: {
-      kidSummary: { type: "string", minLength: 1, maxLength: 500 },
       parentSummary: { type: "string", minLength: 1, maxLength: 1500 },
       focusSkills: {
         type: "array",
@@ -59,7 +44,7 @@ const EMIT_FEEDBACK_TOOL = {
         maxItems: 6,
       },
     },
-    required: ["kidSummary", "parentSummary", "focusSkills"],
+    required: ["parentSummary", "focusSkills"],
   },
 };
 
@@ -77,7 +62,6 @@ export interface FeedbackInput {
 }
 
 export interface FeedbackGenResult {
-  kidSummary: string;
   parentSummary: string;
   focusSkills: string[];
   usage: {

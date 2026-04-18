@@ -122,7 +122,6 @@ export async function POST(
       { merge: true }
     );
     await sessionRef.collection("feedback").doc("summary").set({
-      kidSummary: fb.kidSummary,
       parentSummary: fb.parentSummary,
       focusSkills: fb.focusSkills,
       model: MODEL_SMART,
@@ -140,7 +139,6 @@ export async function POST(
     );
 
     return NextResponse.json({
-      kidSummary: fb.kidSummary,
       parentSummary: fb.parentSummary,
       focusSkills: fb.focusSkills,
       stars,

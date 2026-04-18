@@ -17,7 +17,6 @@ export const GeneratedSession = z.object({
 export type GeneratedSession = z.infer<typeof GeneratedSession>;
 
 export const FeedbackResult = z.object({
-  kidSummary: z.string().min(1).max(500),
   parentSummary: z.string().min(1).max(1500),
   focusSkills: z.array(z.string()).max(6),
 });

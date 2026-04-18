@@ -22,7 +22,6 @@ interface Problem {
 }
 
 interface Summary {
-  kidSummary: string;
   parentSummary: string;
   focusSkills: string[];
   stars: number;
@@ -128,7 +127,6 @@ export function PlayClient() {
             🔥 {summary.streak}-day streak — keep it up!
           </p>
         )}
-        <p className="mt-6 text-xl text-slate-700">{summary.kidSummary}</p>
         <div className="mt-8 flex justify-center gap-3">
           <button onClick={() => router.push("/profiles")} className="btn-ghost">
             Back to profiles
