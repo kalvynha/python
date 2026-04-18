@@ -8,6 +8,17 @@
 
 html, body {
   height: 100%;
+  /* Stop rogue wide children from causing horizontal scroll on phones. */
+  overflow-x: hidden;
+  /* Allow safe-area padding for notched devices. */
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  /* Keeps rem sizing predictable if mobile browsers zoom html. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -15,6 +26,16 @@ body {
   background: radial-gradient(ellipse at top, #e0f2fe, #f0f9ff 60%, #ffffff);
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
+  /* Respect iOS safe areas (notch / home indicator). */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Prevent iOS Safari's auto-zoom on input focus: font-size must be
+   >= 16px. Our Tailwind inputs use text-3xl (30px) so we're fine, but
+   guard any future plain inputs. */
+input, select, textarea {
+  font-size: max(16px, 1rem);
 }
 
 @layer components {

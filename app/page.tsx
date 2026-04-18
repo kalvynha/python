@@ -4,7 +4,7 @@ import Image from "next/image";
 export default function LandingPage() {
   return (
     <>
-      <main className="mx-auto max-w-3xl px-6 py-12 text-center">
+      <main className="mx-auto max-w-3xl px-4 py-8 text-center sm:px-6 sm:py-12">
         <div className="flex justify-center">
           <Image
             src="/logo.png"
@@ -12,7 +12,7 @@ export default function LandingPage() {
             width={480}
             height={200}
             priority
-            className="h-auto w-full max-w-md"
+            className="h-auto w-full max-w-[min(28rem,90vw)] object-contain"
           />
         </div>
         <p className="mt-6 text-xl text-slate-600">

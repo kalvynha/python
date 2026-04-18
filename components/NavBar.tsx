@@ -29,37 +29,42 @@ export function NavBar({
   return (
     <header
       className={
-        "sticky top-0 z-20 flex items-center justify-between bg-white/80 " +
-        "backdrop-blur px-4 " +
-        (compact ? "py-2" : "py-3 sm:px-6")
+        "sticky top-0 z-20 flex w-full items-center justify-between gap-2 " +
+        "bg-white/80 backdrop-blur px-3 sm:px-6 " +
+        (compact ? "py-2" : "py-3")
       }
     >
-      <Link href="/" className="flex items-center gap-2" aria-label="Home">
+      <Link
+        href="/"
+        className="flex min-w-0 flex-1 items-center gap-2"
+        aria-label="Home"
+      >
         <Image
           src="/logo.png"
           alt="Quality Learing Center"
           width={compact ? 120 : 170}
           height={compact ? 50 : 70}
           priority
-          className="h-auto w-auto max-h-14"
+          className="h-10 w-auto max-w-[45vw] object-contain sm:h-14"
         />
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {backTo && (
           <button
             type="button"
             onClick={() => router.push(backTo)}
-            className="rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-slate-700 font-semibold hover:border-sky-400"
+            className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-sky-400 sm:px-4 sm:text-base"
             aria-label={backLabel}
           >
-            ← {backLabel}
+            <span aria-hidden>←</span>
+            <span className="ml-1 hidden sm:inline">{backLabel}</span>
           </button>
         )}
         {exitTo && (
           <Link
             href={exitTo}
-            className="rounded-xl bg-rose-500 px-4 py-2 font-semibold text-white hover:bg-rose-600"
+            className="rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-600 sm:px-4 sm:text-base"
             aria-label={exitLabel}
           >
             {exitLabel}
