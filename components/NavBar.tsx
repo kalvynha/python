@@ -13,6 +13,8 @@ interface Props {
   exitTo?: string;
   /** Label for exit. Defaults to "Exit". */
   exitLabel?: string;
+  /** Prompt before following the exit link (e.g. mid-session). */
+  confirmExit?: string;
   /** Smaller variant used inside the session runner to keep focus on
    * the problem; hides nothing, just tightens spacing. */
   compact?: boolean;
@@ -23,6 +25,7 @@ export function NavBar({
   backLabel = "Back",
   exitTo,
   exitLabel = "Exit",
+  confirmExit,
   compact = false,
 }: Props) {
   const router = useRouter();
@@ -64,6 +67,10 @@ export function NavBar({
         {exitTo && (
           <Link
             href={exitTo}
+            onClick={(e) => {
+              if (!confirmExit) return;
+              if (!window.confirm(confirmExit)) e.preventDefault();
+            }}
             className="rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-600 sm:px-4 sm:text-base"
             aria-label={exitLabel}
           >

@@ -77,9 +77,9 @@ export function BaselineClient() {
   const current = questions[idx];
 
   const onAnswer = async (given: string) => {
-    const correct =
-      given.trim().toLowerCase().replace(/\s+/g, "") ===
-      current.expected.trim().toLowerCase().replace(/\s+/g, "");
+    const norm = (s: string) =>
+      s.trim().toLowerCase().replace(/\s+/g, "").replace(/[.,!?;:"'`]/g, "");
+    const correct = norm(given) === norm(current.expected);
     const nextAnswers = { ...answers, [current.id]: correct };
     setAnswers(nextAnswers);
     setState(correct ? "correct" : "incorrect");
@@ -101,7 +101,12 @@ export function BaselineClient() {
 
   return (
     <>
-      <NavBar exitTo="/profiles" exitLabel="Stop" compact />
+      <NavBar
+        exitTo="/profiles"
+        exitLabel="Stop"
+        confirmExit="Stop the warm-up? We can pick up next time."
+        compact
+      />
       <main className="mx-auto max-w-2xl px-4 py-8">
         <p className="mb-3 text-center text-sm text-slate-500">
           Quick warm-up so we can find your level

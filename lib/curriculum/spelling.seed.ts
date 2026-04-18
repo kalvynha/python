@@ -13,7 +13,7 @@ export const SPELLING_SKILLS: SkillDef[] = [
   { tag: "r_controlled_ar_or", domain: "spelling", name: "R-controlled ar/or", difficulty: 4, description: "car, star, for, corn." },
   { tag: "vowel_teams_ee_ea", domain: "spelling", name: "Vowel teams ee/ea", difficulty: 4, description: "tree, bead, read." },
   { tag: "ie_vs_ei", domain: "spelling", name: "'ie' vs 'ei'", difficulty: 6, description: "believe, receive, field." },
-  { tag: "silent_letters", domain: "spelling", name: "Silent letters", difficulty: 6, description: "knee, knock, lamb, write." },
+  { tag: "silent_letters", domain: "spelling", name: "Silent letters", difficulty: 5, description: "knee, knock, lamb, write." },
   { tag: "common_sight_words", domain: "spelling", name: "High-frequency sight words", difficulty: 2, description: "because, friend, said." },
 ];
 

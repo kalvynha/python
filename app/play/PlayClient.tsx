@@ -41,12 +41,22 @@ export function PlayClient() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [idx, setIdx] = useState(0);
   const [misses, setMisses] = useState(0);
-  const [state, setState] = useState<"idle" | "correct" | "incorrect" | "reveal">("idle");
+  const [state, setState] = useState<"idle" | "correct" | "incorrect" | "reveal" | "hint">("idle");
+  const [hintText, setHintText] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const startedAtRef = useRef<number>(Date.now());
   const sessionEndAtRef = useRef<number>(0);
+
+  // Reset the per-question timer whenever the kid lands on a new
+  // question. Without this, the very first question's timeMs includes
+  // the "Building your session…" loading window.
+  useEffect(() => {
+    if (!loading && problems.length > 0) {
+      startedAtRef.current = Date.now();
+    }
+  }, [idx, loading, problems.length]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(getFirebaseAuth(), (u) => setUser(u));
@@ -80,7 +90,12 @@ export function PlayClient() {
   if (loading || !kidId) {
     return (
       <>
-        <NavBar exitTo="/profiles" exitLabel="Stop" compact />
+        <NavBar
+        exitTo="/profiles"
+        exitLabel="Stop"
+        confirmExit="Stop this practice session? Your progress so far is saved."
+        compact
+      />
         <main className="mx-auto max-w-xl px-6 py-20 text-center">
           Building your session…
         </main>
@@ -173,6 +188,7 @@ export function PlayClient() {
 
     if (correct) {
       setState("correct");
+      setHintText(null);
       setMisses(0);
       setTimeout(() => advance(), 800);
     } else {
@@ -180,13 +196,21 @@ export function PlayClient() {
       setMisses(nextMisses);
       if (nextMisses >= 2) {
         setState("reveal");
-        setTimeout(() => advance(), 2200);
+        setHintText(null);
+        // Give kids time to actually read the revealed answer before
+        // the next question slides in.
+        setTimeout(() => advance(), 3200);
       } else {
-        setState("incorrect");
+        // Pull the first hint from the ladder if one exists; this was
+        // collected but never surfaced to the kid before.
+        const hint = current.hintLadder?.[0] ?? null;
+        setHintText(hint);
+        setState(hint ? "hint" : "incorrect");
         setTimeout(() => {
           setState("idle");
+          setHintText(null);
           setSubmitting(false); // allow retry of the same question
-        }, 900);
+        }, hint ? 1800 : 900);
       }
     }
   };
@@ -214,7 +238,12 @@ export function PlayClient() {
 
   return (
     <>
-    <NavBar exitTo="/profiles" exitLabel="Stop" compact />
+    <NavBar
+        exitTo="/profiles"
+        exitLabel="Stop"
+        confirmExit="Stop this practice session? Your progress so far is saved."
+        compact
+      />
     <main className="mx-auto max-w-2xl px-4 py-8">
       <ProgressRocket current={idx} total={problems.length} />
       <div className="mt-8">
@@ -234,12 +263,23 @@ export function PlayClient() {
           />
         )}
       </div>
-      <FeedbackBubble state={state} correctAnswer={current.expected} />
+      <FeedbackBubble
+        state={state}
+        correctAnswer={current.expected}
+        hint={hintText}
+      />
     </main>
     </>
   );
 }
 
 function normalize(s: string) {
-  return s.trim().toLowerCase().replace(/\s+/g, "");
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    // Strip common stray punctuation a kid might add (periods, dashes,
+    // apostrophes, commas) so we don't mark them wrong for "cat." or
+    // "cat,". Letters, digits, and a hyphen inside words remain.
+    .replace(/[.,!?;:"'`]/g, "");
 }
