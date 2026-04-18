@@ -59,7 +59,7 @@ export function PlayClient() {
       setLoading(true);
       const res = await authedFetch("/api/sessions/generate", {
         method: "POST",
-        body: JSON.stringify({ kidId, durationS: 600 }),
+        body: JSON.stringify({ kidId }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -69,7 +69,10 @@ export function PlayClient() {
       }
       setProblems(data.problems);
       setSessionId(data.sessionId);
-      sessionEndAtRef.current = Date.now() + 600_000;
+      // Server decides the session length from the kid's settings and
+      // echoes it back; use that for the wall-clock cut-off.
+      const durationS = data.durationS ?? 600;
+      sessionEndAtRef.current = Date.now() + durationS * 1000;
       setLoading(false);
     })();
   }, [user, kidId, router]);

@@ -104,6 +104,30 @@ export function pickSessionItems(input: SelectorInput): SelectedItem[] {
       picked.push({ itemId: stretch[i].id, domain, reason: "stretch" });
       pickedIds.add(stretch[i].id);
     }
+
+    // 2b) Backfill to domain budget. When a kid has a light review
+    // queue (e.g. brand new profile), the 60/25/15 shares don't fill
+    // the budget on their own. Pull any remaining items in this domain
+    // preferring items close to current level, then stretch, to hit
+    // the full per-domain target.
+    let deficit = byDomainBudget[domain] - picked.length;
+    if (deficit > 0) {
+      const backfill = pool
+        .filter((p) => !pickedIds.has(p.id))
+        .sort((a, b) => Math.abs(a.diff - level) - Math.abs(b.diff - level));
+      for (const item of backfill) {
+        if (deficit <= 0) break;
+        const reason: SelectedItem["reason"] =
+          item.diff === level
+            ? "current"
+            : item.diff > level
+              ? "stretch"
+              : "current";
+        picked.push({ itemId: item.id, domain, reason });
+        pickedIds.add(item.id);
+        deficit--;
+      }
+    }
   }
 
   // 3) Interleave if requested; otherwise keep domain blocks.

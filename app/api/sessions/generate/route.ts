@@ -16,7 +16,10 @@ export const runtime = "nodejs";
 
 const Body = z.object({
   kidId: z.string(),
-  durationS: z.number().int().min(120).max(1800),
+  // Optional override — when absent we use kid.sessionDurationS. The
+  // client no longer sends this; it was a footgun that ignored the
+  // parent's configured duration.
+  durationS: z.number().int().min(120).max(1800).optional(),
 });
 
 // Below this many resolved problems, fall back to Claude for the gap.
@@ -79,12 +82,15 @@ export async function POST(req: NextRequest) {
     // read, and every request has a full pool to pick from.
     const { selectorMeta, resolverMeta } = buildInventory();
 
+    const durationS =
+      body.durationS ?? (kid.sessionDurationS as number | undefined) ?? 600;
+
     const picks = pickSessionItems({
       reviewQueue,
       itemMeta: selectorMeta,
       currentLevel: levels,
       subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
-      durationS: body.durationS,
+      durationS,
       interleave: kid.interleave ?? true,
       now: Date.now(),
     });
@@ -131,7 +137,7 @@ export async function POST(req: NextRequest) {
         weakSkillTags,
         dueItems,
         subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
-        durationS: body.durationS,
+        durationS,
         interleave: kid.interleave ?? true,
       });
       claudeUsage = claudeResult.usage;
@@ -161,7 +167,7 @@ export async function POST(req: NextRequest) {
       kidId: body.kidId,
       startedAt: Date.now(),
       endedAt: null,
-      durationTargetS: body.durationS,
+      durationTargetS: durationS,
       subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
       itemIdsPlanned: problems.map((p) => p.id),
       summaryState: "pending",
@@ -170,7 +176,7 @@ export async function POST(req: NextRequest) {
       usage: claudeUsage,
     });
 
-    return NextResponse.json({ sessionId, problems });
+    return NextResponse.json({ sessionId, problems, durationS });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     const status = msg.includes("bearer") ? 401 : 500;
