@@ -15,6 +15,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
     "@google-cloud/text-to-speech": "^6.4.0",
+    "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "firebase": "^11.0.1",
     "firebase-admin": "^13.0.1",
@@ -27,6 +28,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.9.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",

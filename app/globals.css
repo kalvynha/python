@@ -38,6 +38,15 @@ input, select, textarea {
   font-size: max(16px, 1rem);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer components {
   .btn-kid {
     @apply inline-flex items-center justify-center rounded-2xl px-6 py-4 text-xl font-semibold shadow-md active:scale-95 transition;

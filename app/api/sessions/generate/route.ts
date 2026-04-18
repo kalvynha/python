@@ -155,6 +155,36 @@ export async function POST(req: NextRequest) {
       const filler = extras.slice(0, need);
       problems = [...problems, ...filler];
       claudeCount = filler.length;
+
+      // Persist Claude-generated items to Firestore so future sessions
+      // can resolve them from /items when they come up for review.
+      // Without this, Claude items end up in the review queue but
+      // can't be re-served (no inventory lookup), and kids see them
+      // once then they're lost.
+      if (filler.length > 0) {
+        const batch = db.batch();
+        for (const p of filler) {
+          const domain: "math" | "spelling" =
+            p.type === "math_arith" ? "math" : "spelling";
+          batch.set(
+            db.collection("items").doc(p.id),
+            {
+              id: p.id,
+              type: p.type,
+              skillTag: p.skillTag,
+              difficulty: domain === "math" ? 3 : 3,
+              prompt: p.prompt,
+              expected: p.expected,
+              sentence: p.sentence,
+              hintLadder: p.hintLadder,
+              source: "claude",
+              createdAt: Date.now(),
+            },
+            { merge: true }
+          );
+        }
+        await batch.commit();
+      }
     }
 
     const generationSource = {

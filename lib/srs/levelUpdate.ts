@@ -65,15 +65,23 @@ export function computeStars(attempts: AttemptSummary[]): number {
   return 0;
 }
 
+/** Local-time YYYY-MM-DD. Using local date avoids UTC edge where a
+ * kid practicing at 8pm Pacific sees their streak reset at midnight
+ * UTC (5pm Pacific). */
 function isoDay(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
+  const d = new Date(ms);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-/** Returns YYYY-MM-DD for the day BEFORE the given date. */
+/** Returns YYYY-MM-DD for the day BEFORE the given local date. */
 function yesterday(isoDate: string): string {
-  const d = new Date(isoDate + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setDate(dt.getDate() - 1);
+  return isoDay(dt.getTime());
 }
 
 export function computeStreak(

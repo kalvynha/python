@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { authedFetch } from "@/lib/client/authedFetch";
+import { fetchTTS, speakFallback } from "@/lib/client/tts";
 
 interface Props {
   word: string;
@@ -14,18 +14,21 @@ interface Props {
 /**
  * Spelling prompt: plays the target word (and optional sentence) aloud
  * and lets the kid type it. Primary voice comes from the server-side
- * ElevenLabs TTS at /api/tts. If that fails (offline, quota, no key),
- * falls back to the browser's Web Speech API so the UI still works.
+ * Google Cloud TTS at /api/tts. Falls back to browser Web Speech API.
+ *
+ * iOS blocks autoplay until a user gesture. On the very first mount
+ * we attempt autoplay; if it's rejected we stay in a "tap to hear"
+ * state so the kid can trigger playback themselves.
  */
 export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
   const [entry, setEntry] = useState("");
   const [wordLoading, setWordLoading] = useState(false);
   const [sentenceLoading, setSentenceLoading] = useState(false);
+  const [needsTap, setNeedsTap] = useState(false);
   const wordUrlRef = useRef<string | null>(null);
   const sentenceUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Pre-fetch the word and auto-play it when the question changes.
   useEffect(() => {
     let cancelled = false;
     revokeBlobs();
@@ -41,7 +44,9 @@ export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
       }
       wordUrlRef.current = url;
       setWordLoading(false);
-      playThrough(url, word);
+      // Best-effort autoplay; if blocked, flip into tap-to-hear mode.
+      const ok = await playThrough(url, word);
+      if (!ok) setNeedsTap(true);
     })();
 
     return () => {
@@ -50,9 +55,7 @@ export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);
 
-  useEffect(() => {
-    return () => revokeBlobs();
-  }, []);
+  useEffect(() => () => revokeBlobs(), []);
 
   const revokeBlobs = () => {
     if (wordUrlRef.current) URL.revokeObjectURL(wordUrlRef.current);
@@ -60,38 +63,48 @@ export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
   };
 
   const playWord = async () => {
+    setNeedsTap(false);
     if (wordUrlRef.current) {
-      playThrough(wordUrlRef.current, word);
+      await playThrough(wordUrlRef.current, word);
       return;
     }
     setWordLoading(true);
     const url = await fetchTTS(word);
     wordUrlRef.current = url;
     setWordLoading(false);
-    playThrough(url, word);
+    await playThrough(url, word);
   };
 
   const playSentence = async () => {
     if (!sentence) return;
     if (sentenceUrlRef.current) {
-      playThrough(sentenceUrlRef.current, sentence);
+      await playThrough(sentenceUrlRef.current, sentence);
       return;
     }
     setSentenceLoading(true);
     const url = await fetchTTS(sentence);
     sentenceUrlRef.current = url;
     setSentenceLoading(false);
-    playThrough(url, sentence);
+    await playThrough(url, sentence);
   };
 
-  const playThrough = (url: string | null, fallbackText: string) => {
+  const playThrough = async (
+    url: string | null,
+    fallbackText: string
+  ): Promise<boolean> => {
     if (!url) {
       speakFallback(fallbackText);
-      return;
+      return true;
     }
     if (!audioRef.current) audioRef.current = new Audio();
     audioRef.current.src = url;
-    audioRef.current.play().catch(() => speakFallback(fallbackText));
+    try {
+      await audioRef.current.play();
+      return true;
+    } catch {
+      speakFallback(fallbackText);
+      return false;
+    }
   };
 
   return (
@@ -101,13 +114,18 @@ export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
       className="mx-auto max-w-md text-center"
     >
       <div className="rounded-3xl bg-white p-8 shadow-md">
-        <p className="text-slate-500 text-lg">Listen and spell the word</p>
+        <p className="text-slate-500 text-lg">
+          {needsTap ? "Tap to hear the word" : "Listen and spell the word"}
+        </p>
         <div className="mt-6 flex flex-col items-center gap-3">
           <button
             type="button"
             onClick={playWord}
             disabled={wordLoading}
-            className="btn-primary relative h-20 w-20 rounded-full text-3xl disabled:opacity-70"
+            className={
+              "btn-primary relative h-20 w-20 rounded-full text-3xl disabled:opacity-70 " +
+              (needsTap ? "ring-4 ring-sky-300 animate-pulse" : "")
+            }
             aria-label="Play the word"
           >
             {wordLoading ? (
@@ -160,62 +178,4 @@ export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
       </div>
     </motion.div>
   );
-}
-
-/**
- * Fetch audio for `text` from /api/tts. Returns an object URL the
- * caller can assign to an Audio element, or null if the fetch failed
- * (caller should fall back to Web Speech).
- */
-async function fetchTTS(text: string): Promise<string | null> {
-  try {
-    const res = await authedFetch(
-      `/api/tts?q=${encodeURIComponent(text)}`
-    );
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Web Speech API fallback — used when the server TTS is unreachable
- * or not configured. Quality varies by OS but it keeps the app usable.
- */
-function speakFallback(text: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.8;
-  u.pitch = 1.05;
-  u.voice = pickBestVoice();
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
-}
-
-function pickBestVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined") return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
-  const enVoices = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
-  if (enVoices.length === 0) return voices[0];
-
-  const preferences: Array<(v: SpeechSynthesisVoice) => boolean> = [
-    (v) => /\(premium\)/i.test(v.name),
-    (v) => /\(enhanced\)/i.test(v.name),
-    (v) => /siri/i.test(v.name),
-    (v) => /google us english/i.test(v.name),
-    (v) => /google/i.test(v.name) && !/male/i.test(v.name),
-    (v) => /aria|jenny|natasha|libby/i.test(v.name) && /microsoft/i.test(v.name),
-    (v) => /natural|neural/i.test(v.name),
-    (v) => /samantha|allison|ava|susan/i.test(v.name),
-    (v) => v.lang.toLowerCase().startsWith("en-us"),
-    (v) => v.lang.toLowerCase().startsWith("en"),
-  ];
-  for (const test of preferences) {
-    const match = enVoices.find(test);
-    if (match) return match;
-  }
-  return enVoices[0];
 }

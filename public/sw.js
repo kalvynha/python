@@ -3,8 +3,8 @@
 // fresh Firestore + API responses. An offline fallback can be added
 // later if we want to support read-only modes.
 
-const CACHE = "qlc-shell-v1";
-const SHELL = ["/", "/logo.png", "/logo.svg", "/icon.svg"];
+const CACHE = "qlc-shell-v2";
+const SHELL = ["/", "/profiles", "/logo.png", "/logo.svg", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

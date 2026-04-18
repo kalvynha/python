@@ -142,16 +142,20 @@ async function loadSessions(uid: string, kidId: string): Promise<SessionRow[]> {
       limit(50)
     )
   );
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      startedAt: data.startedAt ?? 0,
-      endedAt: data.endedAt ?? null,
-      durationTargetS: data.durationTargetS ?? 0,
-      questionCount: data.questionCount ?? null,
-      correctCount: data.correctCount ?? null,
-      stars: data.stars ?? null,
-    };
-  });
+  // Only list sessions that finished (endedAt set). Abandoned sessions
+  // clutter the review list with "in progress" rows that never resolve.
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        startedAt: data.startedAt ?? 0,
+        endedAt: (data.endedAt as number | null | undefined) ?? null,
+        durationTargetS: data.durationTargetS ?? 0,
+        questionCount: data.questionCount ?? null,
+        correctCount: data.correctCount ?? null,
+        stars: data.stars ?? null,
+      };
+    })
+    .filter((r) => r.endedAt != null);
 }

@@ -172,6 +172,7 @@ export default function KidDetailPage({
               <KidSettings
                 householdId={data.householdId}
                 kidId={kidId}
+                initialName={data.kid?.displayName ?? ""}
                 initial={data.settings}
               />
             </div>
