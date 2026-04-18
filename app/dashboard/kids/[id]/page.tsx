@@ -16,6 +16,7 @@ import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { PinGate } from "@/components/parent/PinGate";
 import { WeeklyChart } from "@/components/parent/WeeklyChart";
 import { SignIn } from "@/components/parent/SignIn";
+import { NavBar } from "@/components/NavBar";
 
 export default function KidDetailPage({
   params,
@@ -40,11 +41,26 @@ export default function KidDetailPage({
     return () => unsub();
   }, [kidId]);
 
-  if (!authReady) return <main className="py-10 text-center">Loading…</main>;
-  if (!user) return <SignIn />;
+  if (!authReady) {
+    return (
+      <>
+        <NavBar backTo="/dashboard" />
+        <main className="py-10 text-center">Loading…</main>
+      </>
+    );
+  }
+  if (!user) {
+    return (
+      <>
+        <NavBar backTo="/dashboard" />
+        <SignIn />
+      </>
+    );
+  }
 
   return (
     <PinGate>
+      <NavBar backTo="/dashboard" backLabel="Dashboard" />
       <main className="mx-auto max-w-2xl px-6 py-10">
         <h1 className="text-3xl font-bold">
           {data.kid?.displayName ?? "Kid"}

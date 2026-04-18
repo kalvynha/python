@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
+import { NavBar } from "@/components/NavBar";
 
 interface KidProfile {
   id: string;
@@ -38,16 +39,24 @@ export default function ProfilesPage() {
   }, []);
 
   if (loading) {
-    return <main className="mx-auto max-w-xl px-6 py-16 text-center">Loading…</main>;
+    return (
+      <>
+        <NavBar backTo="/" />
+        <main className="mx-auto max-w-xl px-6 py-16 text-center">Loading…</main>
+      </>
+    );
   }
   if (!user) {
     return (
-      <main className="mx-auto max-w-xl px-6 py-16 text-center">
-        <p className="text-xl text-slate-700">Please sign in as a parent first.</p>
-        <Link href="/dashboard" className="btn-primary mt-6 inline-flex">
-          Go to parent dashboard
-        </Link>
-      </main>
+      <>
+        <NavBar backTo="/" />
+        <main className="mx-auto max-w-xl px-6 py-16 text-center">
+          <p className="text-xl text-slate-700">Please sign in as a parent first.</p>
+          <Link href="/dashboard" className="btn-primary mt-6 inline-flex">
+            Go to parent dashboard
+          </Link>
+        </main>
+      </>
     );
   }
 
@@ -58,8 +67,10 @@ export default function ProfilesPage() {
   };
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="text-center text-3xl font-bold">Who's practicing?</h1>
+    <>
+      <NavBar backTo="/" exitTo="/dashboard" exitLabel="Parent area" />
+      <main className="mx-auto max-w-2xl px-6 py-10">
+        <h1 className="text-center text-3xl font-bold">Who's practicing?</h1>
       <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {kids.map((k) => (
           <button
@@ -89,8 +100,9 @@ export default function ProfilesPage() {
             No kid profiles yet. Add one from the parent dashboard.
           </p>
         )}
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }
 

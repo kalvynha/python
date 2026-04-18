@@ -1,4 +1,4 @@
-# Starbright Learning
+# Quality Learing Center
 
 A science-backed web app for kids 6–10 to practice math and spelling, with
 AI-generated sessions and tailored feedback. Parents set session length and

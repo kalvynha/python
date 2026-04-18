@@ -10,6 +10,7 @@ import { MathProblem } from "@/components/kid/MathProblem";
 import { SpellingAudio } from "@/components/kid/SpellingAudio";
 import { FeedbackBubble } from "@/components/kid/FeedbackBubble";
 import { ProgressRocket } from "@/components/kid/ProgressRocket";
+import { NavBar } from "@/components/NavBar";
 
 export function BaselineClient() {
   const router = useRouter();
@@ -32,35 +33,44 @@ export function BaselineClient() {
 
   if (!kidId) {
     return (
-      <main className="mx-auto max-w-xl px-6 py-20 text-center">
-        Missing kid id.
-      </main>
+      <>
+        <NavBar backTo="/profiles" />
+        <main className="mx-auto max-w-xl px-6 py-20 text-center">
+          Missing kid id.
+        </main>
+      </>
     );
   }
   if (!user) {
     return (
-      <main className="mx-auto max-w-xl px-6 py-20 text-center">
-        Please sign in first.
-      </main>
+      <>
+        <NavBar backTo="/profiles" />
+        <main className="mx-auto max-w-xl px-6 py-20 text-center">
+          Please sign in first.
+        </main>
+      </>
     );
   }
 
   if (done) {
     return (
-      <main className="mx-auto max-w-xl px-6 py-16 text-center">
-        <div className="text-6xl">🌟</div>
-        <h1 className="mt-4 text-3xl font-bold">You're all set!</h1>
-        <p className="mt-3 text-slate-700">
-          We'll start math at level {done.math} and spelling at level{" "}
-          {done.spelling}. The app adapts from here.
-        </p>
-        <button
-          onClick={() => router.push(`/play?kidId=${kidId}`)}
-          className="btn-primary mt-8"
-        >
-          Start first session
-        </button>
-      </main>
+      <>
+        <NavBar exitTo="/profiles" exitLabel="Done" compact />
+        <main className="mx-auto max-w-xl px-6 py-16 text-center">
+          <div className="text-6xl">🌟</div>
+          <h1 className="mt-4 text-3xl font-bold">You're all set!</h1>
+          <p className="mt-3 text-slate-700">
+            We'll start math at level {done.math} and spelling at level{" "}
+            {done.spelling}. The app adapts from here.
+          </p>
+          <button
+            onClick={() => router.push(`/play?kidId=${kidId}`)}
+            className="btn-primary mt-8"
+          >
+            Start first session
+          </button>
+        </main>
+      </>
     );
   }
 
@@ -90,23 +100,26 @@ export function BaselineClient() {
   };
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
-      <p className="mb-3 text-center text-sm text-slate-500">
-        Quick warm-up so we can find your level
-      </p>
-      <ProgressRocket current={idx} total={questions.length} />
-      <div className="mt-8">
-        {current.type === "math_arith" ? (
-          <MathProblem prompt={current.prompt} onAnswer={onAnswer} />
-        ) : (
-          <SpellingAudio
-            word={current.prompt}
-            sentence={current.sentence}
-            onAnswer={onAnswer}
-          />
-        )}
-      </div>
-      <FeedbackBubble state={state} correctAnswer={current.expected} />
-    </main>
+    <>
+      <NavBar exitTo="/profiles" exitLabel="Stop" compact />
+      <main className="mx-auto max-w-2xl px-4 py-8">
+        <p className="mb-3 text-center text-sm text-slate-500">
+          Quick warm-up so we can find your level
+        </p>
+        <ProgressRocket current={idx} total={questions.length} />
+        <div className="mt-8">
+          {current.type === "math_arith" ? (
+            <MathProblem prompt={current.prompt} onAnswer={onAnswer} />
+          ) : (
+            <SpellingAudio
+              word={current.prompt}
+              sentence={current.sentence}
+              onAnswer={onAnswer}
+            />
+          )}
+        </div>
+        <FeedbackBubble state={state} correctAnswer={current.expected} />
+      </main>
+    </>
   );
 }

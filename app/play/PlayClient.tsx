@@ -8,6 +8,7 @@ import { authedFetch } from "@/lib/client/authedFetch";
 import { MathProblem } from "@/components/kid/MathProblem";
 import { SpellingAudio } from "@/components/kid/SpellingAudio";
 import { FeedbackBubble } from "@/components/kid/FeedbackBubble";
+import { NavBar } from "@/components/NavBar";
 import { ProgressRocket } from "@/components/kid/ProgressRocket";
 
 interface Problem {
@@ -71,11 +72,20 @@ export function PlayClient() {
   }, [user, kidId, router]);
 
   if (loading || !kidId) {
-    return <main className="mx-auto max-w-xl px-6 py-20 text-center">Building your session…</main>;
+    return (
+      <>
+        <NavBar exitTo="/profiles" exitLabel="Stop" compact />
+        <main className="mx-auto max-w-xl px-6 py-20 text-center">
+          Building your session…
+        </main>
+      </>
+    );
   }
 
   if (summary) {
     return (
+      <>
+      <NavBar exitTo="/profiles" exitLabel="Done" compact />
       <main className="mx-auto max-w-xl px-6 py-16 text-center">
         <div className="text-6xl">🎉</div>
         <h1 className="mt-4 text-3xl font-bold">All done!</h1>
@@ -101,6 +111,7 @@ export function PlayClient() {
           </button>
         </div>
       </main>
+      </>
     );
   }
 
@@ -165,6 +176,8 @@ export function PlayClient() {
   };
 
   return (
+    <>
+    <NavBar exitTo="/profiles" exitLabel="Stop" compact />
     <main className="mx-auto max-w-2xl px-4 py-8">
       <ProgressRocket current={idx} total={problems.length} />
       <div className="mt-8">
@@ -181,6 +194,7 @@ export function PlayClient() {
       </div>
       <FeedbackBubble state={state} correctAnswer={current.expected} />
     </main>
+    </>
   );
 }
 

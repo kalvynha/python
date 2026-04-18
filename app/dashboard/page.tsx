@@ -17,6 +17,7 @@ import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { PinGate } from "@/components/parent/PinGate";
 import { SignIn } from "@/components/parent/SignIn";
 import { KidCard } from "@/components/parent/KidCard";
+import { NavBar } from "@/components/NavBar";
 
 interface Kid {
   id: string;
@@ -45,12 +46,25 @@ export default function DashboardPage() {
   }, []);
 
   if (!authReady) {
-    return <main className="mx-auto max-w-md px-6 py-20 text-center">Loading…</main>;
+    return (
+      <>
+        <NavBar backTo="/" />
+        <main className="mx-auto max-w-md px-6 py-20 text-center">Loading…</main>
+      </>
+    );
   }
-  if (!user) return <SignIn />;
+  if (!user) {
+    return (
+      <>
+        <NavBar backTo="/" />
+        <SignIn />
+      </>
+    );
+  }
 
   return (
     <PinGate>
+      <NavBar backTo="/" exitTo="/profiles" exitLabel="Kid mode" />
       <main className="mx-auto max-w-2xl px-6 py-10">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Parent dashboard</h1>

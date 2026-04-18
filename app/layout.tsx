@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Starbright Learning",
+  title: "Quality Learing Center",
   description: "Math and spelling practice for kids 6–10, powered by AI.",
 };
 
