@@ -25,6 +25,9 @@ RULES (must follow exactly):
 6. Each problem must have a 1-3 step hintLadder, increasingly concrete.
 7. Do not repeat the same prompt twice in one session.
 8. Limit total problems to what fits the duration at ~30 seconds per item.
+9. HARD CAP: never emit more than 20 problems. Prefer 10-15.
+10. Keep strings short: prompts <= 30 chars, sentences <= 60 chars, each hint <= 80 chars. No line breaks inside strings.
+11. End your response with the closing brace and nothing else.
 
 Known skill taxonomy (tag -> short description):
 ${[...MATH_SKILLS, ...SPELLING_SKILLS]
@@ -59,7 +62,7 @@ export async function generateSession(
 
   const resp = await client.messages.create({
     model: MODEL_FAST,
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: cachedSystemBlocks(SYSTEM_PROMPT),
     messages: [
       {
@@ -97,10 +100,42 @@ export async function generateSession(
   };
 }
 
-// Claude occasionally wraps JSON in prose. Extract the first {...} block.
+/**
+ * Extract the first complete {...} JSON block from Claude's output.
+ * Tracks brace balance while respecting strings/escapes so it stops at
+ * the matching closing brace rather than any stray "}" in prose.
+ */
 function extractJson(text: string): unknown {
   const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end < 0) throw new Error("No JSON object in response");
-  return JSON.parse(text.slice(start, end + 1));
+  if (start < 0) throw new Error("No JSON object in response");
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        return JSON.parse(text.slice(start, i + 1));
+      }
+    }
+  }
+  throw new Error(
+    "Truncated JSON from model (output cut off before closing brace)"
+  );
 }
