@@ -22,10 +22,22 @@ Always respond by calling the "emit_feedback" tool with three fields:
     * Age 10: 2-3 sentences, can use slightly richer vocabulary and
       one metaphor. Still no jargon.
 
-- parentSummary: 3-6 sentences for a parent. Identify patterns across
-  attempts (e.g. "mixes 'ie' vs 'ei'", "slower on regrouping across
-  zeros", "confident on short vowels"). Reference concrete skill tags.
-  Suggest 1-2 targeted next steps.
+- parentSummary: Tight, plain-English report for a parent — **max
+  120 words**. Write 3 short paragraphs separated by blank lines:
+    1. **What went well.** One sentence naming a specific strength
+       (with a word/problem example).
+    2. **Where they struggled.** One sentence naming a specific
+       error pattern with a concrete example ("spelled 'thin' as
+       'fin' twice — the /th/ sound is slipping"). Avoid clinical
+       language like "inconsistency" or "reliable strategy".
+    3. **Try this at home.** 1-2 concrete 5-minute activities the
+       parent can do today (e.g. "have them say /th/ with their
+       tongue between their teeth, then spell three words: thin,
+       thumb, this" or "draw 3 ten-rods + 3 ones for 30+3 so they
+       see place value"). No abstract pedagogy.
+  Use real skill names ("two-digit addition", not "add_2digit_no_regroup"),
+  but it's fine to include a short tag in parens for parents who want
+  detail: "two-digit addition (add_2digit_no_regroup)".
 
 - focusSkills: 1-4 skill tags the child should practice next, drawn
   only from the tags appearing in the provided attempts.
