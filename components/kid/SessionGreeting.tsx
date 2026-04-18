@@ -3,9 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { fetchTTSSSML, speakFallback } from "@/lib/client/tts";
+import { RewardTeaser } from "./RewardTeaser";
+
+interface Reward {
+  id: string;
+  title: string;
+  emoji: string;
+  costStars: number;
+}
 
 interface Props {
   name: string;
+  availableStars?: number;
+  rewards?: Reward[];
   onDone: () => void;
 }
 
@@ -16,7 +26,12 @@ interface Props {
  * user gesture that unblocks audio playback on iOS for the rest of
  * the session).
  */
-export function SessionGreeting({ name, onDone }: Props) {
+export function SessionGreeting({
+  name,
+  availableStars = 0,
+  rewards = [],
+  onDone,
+}: Props) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
@@ -74,6 +89,18 @@ export function SessionGreeting({ name, onDone }: Props) {
       <p className="mt-4 text-lg text-slate-600">
         {line.subtitle}
       </p>
+      {rewards.length > 0 && (
+        <div className="mt-3">
+          <div className="text-sm text-slate-500">
+            You have ⭐ {availableStars} stars
+          </div>
+          <RewardTeaser
+            availableStars={availableStars}
+            rewards={rewards}
+            variant="greeting"
+          />
+        </div>
+      )}
       <div className="mt-8 flex flex-col items-center gap-3">
         <button
           type="button"

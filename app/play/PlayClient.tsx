@@ -17,6 +17,7 @@ import { FeedbackBubble } from "@/components/kid/FeedbackBubble";
 import { ProgressRocket } from "@/components/kid/ProgressRocket";
 import { SessionTimer } from "@/components/kid/SessionTimer";
 import { SessionGreeting } from "@/components/kid/SessionGreeting";
+import { RewardTeaser } from "@/components/kid/RewardTeaser";
 import { NavBar } from "@/components/NavBar";
 
 interface Problem {
@@ -48,6 +49,10 @@ export function PlayClient() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [kidName, setKidName] = useState<string>("");
   const [greetingDone, setGreetingDone] = useState(false);
+  const [rewards, setRewards] = useState<
+    Array<{ id: string; title: string; emoji: string; costStars: number }>
+  >([]);
+  const [availableStars, setAvailableStars] = useState(0);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [idx, setIdx] = useState(0);
   const [misses, setMisses] = useState(0);
@@ -90,6 +95,8 @@ export function PlayClient() {
       setProblems(data.problems);
       setSessionId(data.sessionId);
       setKidName(data.kidName ?? "");
+      setRewards(data.rewards ?? []);
+      setAvailableStars(data.availableStars ?? 0);
       const durationS = data.durationS ?? 600;
       sessionEndAtRef.current = Date.now() + durationS * 1000;
       setLoading(false);
@@ -172,6 +179,11 @@ export function PlayClient() {
               🔥 {summary.streak}-day streak — keep it up!
             </p>
           )}
+          <RewardTeaser
+            availableStars={availableStars + summary.stars}
+            rewards={rewards}
+            variant="summary"
+          />
           <div className="mt-10 flex flex-col items-center gap-3">
             <button
               onClick={() => {
@@ -204,6 +216,8 @@ export function PlayClient() {
         />
         <SessionGreeting
           name={kidName || "friend"}
+          availableStars={availableStars}
+          rewards={rewards}
           onDone={() => setGreetingDone(true)}
         />
       </>

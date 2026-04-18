@@ -192,6 +192,31 @@ export async function POST(req: NextRequest) {
       claude: claudeCount,
     };
 
+    // Reward teaser: top-N cheapest unarchived rewards so the kid
+    // sees what their stars are buying them. Also compute available
+    // stars (earned - spent) so the greeting can show progress.
+    const rewardsSnap = await kidRef
+      .collection("rewards")
+      .where("archived", "==", false)
+      .get();
+    const rewards = rewardsSnap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          title: (data.title as string) ?? "",
+          emoji: (data.emoji as string) ?? "🎁",
+          costStars: (data.costStars as number) ?? 0,
+        };
+      })
+      .sort((a, b) => a.costStars - b.costStars)
+      .slice(0, 4);
+    const availableStars = Math.max(
+      0,
+      ((kid.totalStars as number | undefined) ?? 0) -
+        ((kid.spentStars as number | undefined) ?? 0)
+    );
+
     await kidRef.collection("sessions").doc(sessionId).set({
       id: sessionId,
       kidId: body.kidId,
@@ -211,6 +236,8 @@ export async function POST(req: NextRequest) {
       problems,
       durationS,
       kidName: kid.displayName ?? "friend",
+      rewards,
+      availableStars,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
