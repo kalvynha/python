@@ -62,8 +62,10 @@ export function pickSessionItems(input: SelectorInput): SelectedItem[] {
     picked.push({ itemId: r.itemId, domain: meta.domain, reason: "review" });
   }
 
-  // 2) Current-level items: items with difficulty within ±1 of level,
-  //    excluding already-picked ids.
+  // 2) Current-level items: items at the kid's exact current difficulty
+  //    (we previously allowed ±1 which pulled in next-level items —
+  //    e.g. level-1 kids were getting sub_within_20 questions that
+  //    should only appear as stretch).
   const pickedIds = new Set<string>(
     [...byDomainPicked.math, ...byDomainPicked.spelling].map((p) => p.itemId)
   );
@@ -78,9 +80,7 @@ export function pickSessionItems(input: SelectorInput): SelectedItem[] {
       .filter(([id, m]) => m.domain === domain && !pickedIds.has(id))
       .map(([id, m]) => ({ id, diff: m.difficulty }));
 
-    const current = pool
-      .filter((p) => Math.abs(p.diff - level) <= 1)
-      .sort((a, b) => Math.abs(a.diff - level) - Math.abs(b.diff - level));
+    const current = pool.filter((p) => p.diff === level);
     const stretch = pool.filter((p) => p.diff === level + 1 || p.diff === level + 2);
 
     const currentShare = Math.min(

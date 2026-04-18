@@ -89,14 +89,53 @@ export function SpellingAudio({ word, sentence, onAnswer, disabled }: Props) {
 function speak(text: string) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.85;
-  u.pitch = 1.1;
-  // Prefer an en-US voice
-  const voices = window.speechSynthesis.getVoices();
-  const preferred =
-    voices.find((v) => v.lang.startsWith("en") && /child|kid|samantha|google/i.test(v.name)) ??
-    voices.find((v) => v.lang.startsWith("en"));
-  if (preferred) u.voice = preferred;
+  u.rate = 0.8;
+  u.pitch = 1.05;
+  u.voice = pickBestVoice();
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
+}
+
+/**
+ * Pick the most natural-sounding English voice available in the
+ * browser. Voice availability varies by OS/browser — this priority
+ * list prefers premium/neural voices where possible and falls back
+ * gracefully.
+ */
+function pickBestVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined") return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return null;
+
+  const enVoices = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
+  if (enVoices.length === 0) return voices[0];
+
+  // Priority order — roughly best-to-worst by perceived naturalness
+  // across Chrome, Safari, Edge, Firefox on macOS / Windows / Android / iOS.
+  const preferences: Array<(v: SpeechSynthesisVoice) => boolean> = [
+    // Apple premium/enhanced (macOS 14+ / iOS 17+)
+    (v) => /\(premium\)/i.test(v.name),
+    (v) => /\(enhanced\)/i.test(v.name),
+    (v) => /ava|evan|zoe/i.test(v.name) && /apple|siri/i.test(v.name),
+    // Apple Siri voices (iOS/macOS)
+    (v) => /siri/i.test(v.name),
+    // Google / Android
+    (v) => /google us english/i.test(v.name),
+    (v) => /google uk english female/i.test(v.name),
+    (v) => /google/i.test(v.name) && !/male/i.test(v.name),
+    // Microsoft neural voices (Windows 11, Edge)
+    (v) => /aria|jenny|natasha|libby/i.test(v.name) && /microsoft/i.test(v.name),
+    (v) => /natural|neural/i.test(v.name),
+    // Decent legacy macOS voices
+    (v) => /samantha|allison|ava|susan/i.test(v.name),
+    // Any English voice as last resort
+    (v) => v.lang.toLowerCase().startsWith("en-us"),
+    (v) => v.lang.toLowerCase().startsWith("en"),
+  ];
+
+  for (const test of preferences) {
+    const match = enVoices.find(test);
+    if (match) return match;
+  }
+  return enVoices[0];
 }

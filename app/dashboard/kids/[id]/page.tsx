@@ -17,6 +17,7 @@ import { PinGate } from "@/components/parent/PinGate";
 import { WeeklyChart } from "@/components/parent/WeeklyChart";
 import { SignIn } from "@/components/parent/SignIn";
 import { NavBar } from "@/components/NavBar";
+import { KidSettings } from "@/components/parent/KidSettings";
 import { MATH_SKILLS } from "@/lib/curriculum/math.seed";
 import { SPELLING_SKILLS } from "@/lib/curriculum/spelling.seed";
 
@@ -42,6 +43,12 @@ interface SkillLevelRow {
 
 interface KidDetailData {
   kid: { displayName: string; age: number } | null;
+  householdId: string | null;
+  settings: {
+    sessionDurationS: number;
+    subjectMix: { math: number; spelling: number };
+    interleave: boolean;
+  } | null;
   stats: KidStats;
   weekly: Array<{ day: string; accuracy: number; count: number }>;
   skillLevels: SkillLevelRow[];
@@ -50,6 +57,8 @@ interface KidDetailData {
 
 const EMPTY: KidDetailData = {
   kid: null,
+  householdId: null,
+  settings: null,
   stats: {
     totalSessions: 0,
     sessionsThisWeek: 0,
@@ -152,6 +161,22 @@ export default function KidDetailPage({
             <WeeklyChart data={data.weekly} />
           </div>
         </section>
+
+        {data.householdId && data.settings && (
+          <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+            <h2 className="font-semibold">Session settings</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Changes apply to the next session.
+            </p>
+            <div className="mt-4">
+              <KidSettings
+                householdId={data.householdId}
+                kidId={kidId}
+                initial={data.settings}
+              />
+            </div>
+          </section>
+        )}
 
         <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
           <h2 className="font-semibold">Skill progress</h2>
@@ -265,6 +290,13 @@ async function loadKidData(uid: string, kidId: string): Promise<KidDetailData> {
   const kidData = kidDoc.exists() ? kidDoc.data() : null;
   const kid = kidData
     ? { displayName: kidData.displayName, age: kidData.age }
+    : null;
+  const settings = kidData
+    ? {
+        sessionDurationS: kidData.sessionDurationS ?? 600,
+        subjectMix: kidData.subjectMix ?? { math: 0.5, spelling: 0.5 },
+        interleave: kidData.interleave ?? true,
+      }
     : null;
 
   const sessionsSnap = await getDocs(
@@ -385,5 +417,13 @@ async function loadKidData(uid: string, kidId: string): Promise<KidDetailData> {
     }
   }
 
-  return { kid, stats, weekly, skillLevels, latestFeedback };
+  return {
+    kid,
+    householdId: hid,
+    settings,
+    stats,
+    weekly,
+    skillLevels,
+    latestFeedback,
+  };
 }

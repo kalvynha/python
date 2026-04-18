@@ -230,13 +230,17 @@ function AddKidForm({
               onChange={(e) => setDuration(Number(e.target.value))}
               className="mt-1 w-full rounded-xl border-2 border-slate-200 px-3 py-2"
             >
-              <option value={300}>5</option>
-              <option value={600}>10</option>
-              <option value={900}>15</option>
-              <option value={1200}>20</option>
+              <option value={300}>5 min (~10 Qs)</option>
+              <option value={600}>10 min (~20 Qs)</option>
+              <option value={900}>15 min (~30 Qs)</option>
+              <option value={1200}>20 min (~40 Qs)</option>
             </select>
           </label>
         </div>
+        <p className="text-xs text-slate-500">
+          Sessions have roughly one question every 30 seconds. You can
+          change this anytime from each kid's page.
+        </p>
       </div>
       <button onClick={submit} disabled={saving} className="btn-primary mt-4 w-full">
         {saving ? "Saving…" : "Add kid"}
