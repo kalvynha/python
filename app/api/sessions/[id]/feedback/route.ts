@@ -61,6 +61,20 @@ export async function POST(
       return NextResponse.json({ error: "no_attempts" }, { status: 400 });
     }
 
+    // "Correct" = unique items where the kid ever answered correctly
+    // (any attempt). "Total" = unique items they saw. This matches how
+    // the runner presents the experience: one item per question slot,
+    // up to two tries each.
+    const uniqueItems = new Set<string>();
+    const correctItems = new Set<string>();
+    for (const a of attemptsSnap.docs) {
+      const d = a.data();
+      if (typeof d.itemId === "string") uniqueItems.add(d.itemId);
+      if (d.correct && typeof d.itemId === "string") correctItems.add(d.itemId);
+    }
+    const questionCount = uniqueItems.size;
+    const correctCount = correctItems.size;
+
     const fb = await generateFeedback({
       kid: { displayName: kid.displayName ?? "friend", age: kid.age ?? 7 },
       attempts,
@@ -98,7 +112,13 @@ export async function POST(
     await Promise.all(levelWrites);
 
     await sessionRef.set(
-      { endedAt: now, summaryState: "ready", stars },
+      {
+        endedAt: now,
+        summaryState: "ready",
+        stars,
+        correctCount,
+        questionCount,
+      },
       { merge: true }
     );
     await sessionRef.collection("feedback").doc("summary").set({
@@ -125,6 +145,8 @@ export async function POST(
       focusSkills: fb.focusSkills,
       stars,
       streak: streak.streak,
+      correctCount,
+      questionCount,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";

@@ -89,6 +89,9 @@ export const SessionDoc = z.object({
       claude: z.number().int().nonnegative(),
     })
     .optional(),
+  stars: z.number().int().min(0).max(3).optional(),
+  correctCount: z.number().int().nonnegative().optional(),
+  questionCount: z.number().int().nonnegative().optional(),
 });
 export type SessionDoc = z.infer<typeof SessionDoc>;
 
