@@ -12,10 +12,12 @@ interface Props {
     currentStreak: number;
     totalStars: number;
     baselined: boolean;
+    pendingRedemptions?: number;
   };
 }
 
 export function KidCard({ kid }: Props) {
+  const pending = kid.pendingRedemptions ?? 0;
   return (
     <Link
       href={`/dashboard/kids/${kid.id}`}
@@ -23,7 +25,17 @@ export function KidCard({ kid }: Props) {
     >
       <div className="text-5xl">{kid.avatar || "🙂"}</div>
       <div className="flex-1">
-        <div className="text-lg font-semibold">{kid.displayName}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-lg font-semibold">{kid.displayName}</div>
+          {pending > 0 && (
+            <span
+              className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white"
+              title={`${pending} pending reward request${pending === 1 ? "" : "s"}`}
+            >
+              {pending} reward request{pending === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
         <div className="text-sm text-slate-500">
           Age {kid.age} · {Math.round(kid.sessionDurationS / 60)} min sessions
         </div>

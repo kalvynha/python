@@ -171,14 +171,17 @@ export function PlayClient() {
           <div className="mt-10 flex flex-col items-center gap-3">
             <button
               onClick={() => {
-                // Start a fresh session by resetting local state; the
-                // generate effect re-runs when setState changes are
-                // propagated through a full page navigation.
                 window.location.href = `/play?kidId=${kidId}&t=${Date.now()}`;
               }}
               className="btn-primary w-full max-w-xs"
             >
               Keep going →
+            </button>
+            <button
+              onClick={() => router.push(`/rewards?kidId=${kidId}`)}
+              className="btn-ghost w-full max-w-xs"
+            >
+              See rewards ⭐
             </button>
           </div>
         </main>

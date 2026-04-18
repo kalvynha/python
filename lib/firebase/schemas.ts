@@ -23,6 +23,7 @@ export const KidDoc = z.object({
   currentStreak: z.number().int().nonnegative().default(0),
   lastSessionDay: z.string().optional(), // ISO date YYYY-MM-DD
   totalStars: z.number().int().nonnegative().default(0),
+  spentStars: z.number().int().nonnegative().default(0),
 });
 export type KidDoc = z.infer<typeof KidDoc>;
 
@@ -94,6 +95,45 @@ export const SessionDoc = z.object({
   questionCount: z.number().int().nonnegative().optional(),
 });
 export type SessionDoc = z.infer<typeof SessionDoc>;
+
+export const RewardDoc = z.object({
+  id: z.string(),
+  title: z.string().min(1).max(60),
+  emoji: z.string().min(1).max(4),
+  costStars: z.number().int().positive().max(10000),
+  description: z.string().max(240).optional(),
+  archived: z.boolean().default(false),
+  createdAt: z.number(),
+});
+export type RewardDoc = z.infer<typeof RewardDoc>;
+
+export const RedemptionStatus = z.enum(["pending", "approved", "declined"]);
+export type RedemptionStatus = z.infer<typeof RedemptionStatus>;
+
+export const RedemptionDoc = z.object({
+  id: z.string(),
+  rewardId: z.string(),
+  rewardTitle: z.string(),
+  rewardEmoji: z.string(),
+  costStars: z.number().int().positive(),
+  status: RedemptionStatus,
+  requestedAt: z.number(),
+  resolvedAt: z.number().optional(),
+});
+export type RedemptionDoc = z.infer<typeof RedemptionDoc>;
+
+export const BadgeTier = z.enum(["bronze", "silver", "gold"]);
+export type BadgeTier = z.infer<typeof BadgeTier>;
+
+export const BadgeDoc = z.object({
+  id: z.string(), // `${skillTag}:${tier}`
+  type: z.literal("skill_level"),
+  skillTag: z.string(),
+  tier: BadgeTier,
+  level: z.number().int().min(0).max(10),
+  earnedAt: z.number(),
+});
+export type BadgeDoc = z.infer<typeof BadgeDoc>;
 
 export const FeedbackDoc = z.object({
   kidSummary: z.string(),

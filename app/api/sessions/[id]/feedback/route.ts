@@ -12,6 +12,11 @@ import {
   computeStreak,
   proposeLevelDelta,
 } from "@/lib/srs/levelUpdate";
+import {
+  badgeDocId,
+  tiersToAward,
+  type BadgeTier,
+} from "@/lib/srs/badges";
 
 export const runtime = "nodejs";
 
@@ -92,9 +97,13 @@ export async function POST(
     );
 
     // Update skill levels for skills with enough evidence this session.
+    // Any skill whose new level crosses a badge threshold earns one
+    // (or more) badge docs — only if that tier isn't already earned.
     const buckets = bucketBySkill(attempts);
     const levelsRef = kidRef.collection("skillLevels");
+    const badgesRef = kidRef.collection("badges");
     const levelWrites: Array<Promise<unknown>> = [];
+    const earnedBadges: Array<{ skillTag: string; tier: BadgeTier; level: number }> = [];
     for (const [tag, bucket] of Object.entries(buckets)) {
       const delta = proposeLevelDelta(bucket);
       if (delta === 0) continue;
@@ -108,6 +117,30 @@ export async function POST(
           { merge: true }
         )
       );
+
+      // Check badge thresholds. Read existing badge docs for this
+      // skill to know which tiers were already earned.
+      const existingBadgesSnap = await badgesRef
+        .where("skillTag", "==", tag)
+        .get();
+      const already = new Set<BadgeTier>(
+        existingBadgesSnap.docs.map((d) => d.data().tier as BadgeTier)
+      );
+      const newTiers = tiersToAward(nextLevel, already);
+      for (const tier of newTiers) {
+        const bid = badgeDocId(tag, tier);
+        levelWrites.push(
+          badgesRef.doc(bid).set({
+            id: bid,
+            type: "skill_level",
+            skillTag: tag,
+            tier,
+            level: nextLevel,
+            earnedAt: now,
+          })
+        );
+        earnedBadges.push({ skillTag: tag, tier, level: nextLevel });
+      }
     }
     await Promise.all(levelWrites);
 
@@ -145,6 +178,7 @@ export async function POST(
       streak: streak.streak,
       correctCount,
       questionCount,
+      earnedBadges,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";

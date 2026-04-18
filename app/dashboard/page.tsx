@@ -28,6 +28,7 @@ interface Kid {
   currentStreak: number;
   totalStars: number;
   baselined: boolean;
+  pendingRedemptions: number;
 }
 
 export default function DashboardPage() {
@@ -127,9 +128,17 @@ async function ensureHouseholdAndLoad(
   }
   setHid(hid);
   const kidsSnap = await getDocs(collection(db, "households", hid, "kids"));
-  setKids(
-    kidsSnap.docs.map((d) => {
+  // Pull pending redemption counts in parallel so we can surface an
+  // alert on each kid card.
+  const loaded = await Promise.all(
+    kidsSnap.docs.map(async (d) => {
       const data = d.data();
+      const pending = await getDocs(
+        query(
+          collection(db, "households", hid, "kids", d.id, "redemptions"),
+          where("status", "==", "pending")
+        )
+      );
       return {
         id: d.id,
         displayName: data.displayName,
@@ -139,9 +148,11 @@ async function ensureHouseholdAndLoad(
         currentStreak: data.currentStreak ?? 0,
         totalStars: data.totalStars ?? 0,
         baselined: data.baselined === true,
+        pendingRedemptions: pending.size,
       };
     })
   );
+  setKids(loaded);
 }
 
 function AddKidForm({
@@ -171,9 +182,11 @@ function AddKidForm({
       currentStreak: 0,
       totalStars: 0,
       baselined: false,
+      pendingRedemptions: 0,
     };
     await setDoc(kidRef, {
       ...kid,
+      spentStars: 0,
       subjectMix: { math: 0.5, spelling: 0.5 },
       interleave: true,
       createdAt: Date.now(),

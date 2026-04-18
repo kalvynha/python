@@ -18,8 +18,10 @@ import { WeeklyChart } from "@/components/parent/WeeklyChart";
 import { SignIn } from "@/components/parent/SignIn";
 import { NavBar } from "@/components/NavBar";
 import { KidSettings } from "@/components/parent/KidSettings";
+import { BadgeStrip } from "@/components/parent/BadgeStrip";
 import { MATH_SKILLS } from "@/lib/curriculum/math.seed";
 import { SPELLING_SKILLS } from "@/lib/curriculum/spelling.seed";
+import type { BadgeTier } from "@/lib/srs/badges";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
@@ -41,6 +43,13 @@ interface SkillLevelRow {
   level: number;
 }
 
+interface BadgeRow {
+  skillTag: string;
+  tier: BadgeTier;
+  level: number;
+  earnedAt: number;
+}
+
 interface KidDetailData {
   kid: { displayName: string; age: number } | null;
   householdId: string | null;
@@ -52,6 +61,8 @@ interface KidDetailData {
   stats: KidStats;
   weekly: Array<{ day: string; accuracy: number; count: number }>;
   skillLevels: SkillLevelRow[];
+  badges: BadgeRow[];
+  pendingRedemptions: number;
   latestFeedback: { parentSummary: string } | null;
 }
 
@@ -70,6 +81,8 @@ const EMPTY: KidDetailData = {
   },
   weekly: [],
   skillLevels: [],
+  badges: [],
+  pendingRedemptions: 0,
   latestFeedback: null,
 };
 
@@ -124,12 +137,30 @@ export default function KidDetailPage({
             </h1>
             <p className="text-slate-500">Age {data.kid?.age}</p>
           </div>
-          <a
-            href={`/dashboard/kids/${kidId}/sessions`}
-            className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:border-sky-400"
-          >
-            All sessions →
-          </a>
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
+            <a
+              href={`/dashboard/kids/${kidId}/rewards`}
+              className={
+                "relative rounded-xl border-2 px-3 py-2 text-sm font-semibold " +
+                (data.pendingRedemptions > 0
+                  ? "border-amber-300 bg-amber-50 text-amber-800"
+                  : "border-slate-200 bg-white hover:border-sky-400")
+              }
+            >
+              Rewards
+              {data.pendingRedemptions > 0 && (
+                <span className="ml-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white">
+                  {data.pendingRedemptions}
+                </span>
+              )}
+            </a>
+            <a
+              href={`/dashboard/kids/${kidId}/sessions`}
+              className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:border-sky-400"
+            >
+              Sessions →
+            </a>
+          </div>
         </div>
 
         <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -178,6 +209,20 @@ export default function KidDetailPage({
             </div>
           </section>
         )}
+
+        <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+          <h2 className="font-semibold">Badges</h2>
+          <div className="mt-3">
+            <BadgeStrip
+              badges={data.badges}
+              skills={ALL_SKILLS.map((s) => ({
+                tag: s.tag,
+                name: s.name,
+                domain: s.domain,
+              }))}
+            />
+          </div>
+        </section>
 
         <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
           <h2 className="font-semibold">Skill progress</h2>
@@ -394,6 +439,27 @@ async function loadKidData(uid: string, kidId: string): Promise<KidDetailData> {
     level: levelsByTag[s.tag] ?? 0,
   })).filter((s) => s.level > 0);
 
+  // Badges + pending redemption count (parallel for speed)
+  const [badgesSnap, pendingSnap] = await Promise.all([
+    getDocs(collection(db, "households", hid, "kids", kidId, "badges")),
+    getDocs(
+      query(
+        collection(db, "households", hid, "kids", kidId, "redemptions"),
+        where("status", "==", "pending")
+      )
+    ),
+  ]);
+  const badges: BadgeRow[] = badgesSnap.docs.map((d) => {
+    const data = d.data();
+    return {
+      skillTag: data.skillTag,
+      tier: data.tier as BadgeTier,
+      level: data.level ?? 0,
+      earnedAt: data.earnedAt ?? 0,
+    };
+  });
+  const pendingRedemptions = pendingSnap.size;
+
   // Latest feedback
   let latestFeedback: KidDetailData["latestFeedback"] = null;
   for (const s of sessionsSnap.docs) {
@@ -425,6 +491,8 @@ async function loadKidData(uid: string, kidId: string): Promise<KidDetailData> {
     stats,
     weekly,
     skillLevels,
+    badges,
+    pendingRedemptions,
     latestFeedback,
   };
 }

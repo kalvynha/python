@@ -66,25 +66,23 @@ export function MathProblem({
       animate={{ opacity: 1, y: 0 }}
       className="mx-auto max-w-md"
     >
-      <div className="rounded-3xl bg-white p-6 text-center shadow-md">
-        <div className="flex items-center justify-center gap-3">
-          <div className="text-kid-xl font-bold tabular-nums text-slate-900">
-            {prompt} = <span className="text-sky-500">{entry || "?"}</span>
-          </div>
-          <button
-            type="button"
-            onClick={speak}
-            disabled={loadingAudio || disabled}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-xl hover:bg-sky-200 disabled:opacity-60"
-            aria-label="Read the problem"
-            title="Read the problem"
-          >
-            {loadingAudio ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-300 border-t-sky-600" />
-            ) : (
-              "🔊"
-            )}
-          </button>
+      <div className="relative rounded-3xl bg-white p-6 text-center shadow-md">
+        <button
+          type="button"
+          onClick={speak}
+          disabled={loadingAudio || disabled}
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-xl hover:bg-sky-200 disabled:opacity-60"
+          aria-label="Read the problem"
+          title="Read the problem"
+        >
+          {loadingAudio ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-300 border-t-sky-600" />
+          ) : (
+            "🔊"
+          )}
+        </button>
+        <div className="text-kid-xl font-bold tabular-nums text-slate-900">
+          {prompt} = <span className="text-sky-500">{entry || "?"}</span>
         </div>
         {showManipulatives && <Manipulatives prompt={prompt} />}
       </div>
