@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 
 interface Props {
   word: string;
-  imageHint?: string; // passed to an emoji picker or future image lookup
+  imageHint?: string;
+  emoji?: string;
   onAnswer: (given: string) => void;
   disabled?: boolean;
 }
@@ -35,9 +36,16 @@ const EMOJI_MAP: Record<string, string> = {
   bag: "👜",
 };
 
-export function SpellingVisual({ word, imageHint, onAnswer, disabled }: Props) {
+export function SpellingVisual({
+  word,
+  imageHint,
+  emoji,
+  onAnswer,
+  disabled,
+}: Props) {
   const [entry, setEntry] = useState("");
-  const emoji = EMOJI_MAP[(imageHint ?? word).toLowerCase()] ?? null;
+  const shown =
+    emoji ?? EMOJI_MAP[(imageHint ?? word).toLowerCase()] ?? null;
 
   return (
     <motion.div
@@ -48,7 +56,7 @@ export function SpellingVisual({ word, imageHint, onAnswer, disabled }: Props) {
       <div className="rounded-3xl bg-white p-8 shadow-md">
         <p className="text-slate-500 text-lg">What is this?</p>
         <div className="mt-4 flex h-40 items-center justify-center rounded-2xl bg-sky-50 text-7xl">
-          {emoji ?? (
+          {shown ?? (
             <span className="text-slate-300 text-5xl font-bold">
               {word[0].toUpperCase()}?
             </span>

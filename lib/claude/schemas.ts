@@ -8,6 +8,7 @@ export const GeneratedProblem = z.object({
   expected: z.string(),
   sentence: z.string().optional(),
   imageHint: z.string().optional(),
+  emoji: z.string().optional(),
   hintLadder: z.array(z.string()).max(3),
 });
 export type GeneratedProblem = z.infer<typeof GeneratedProblem>;

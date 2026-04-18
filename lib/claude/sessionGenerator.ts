@@ -17,7 +17,7 @@ RULES:
 2. Types:
    - "math_arith": prompt is a math expression like "12 + 7"; expected is the numeric answer as a string.
    - "spelling_audio": prompt is a single target word; sentence is a short kid-friendly sentence using it.
-   - "spelling_visual": prompt is a single target word; imageHint is 2-4 words describing a clipart.
+   - "spelling_visual": prompt is a single target word; emoji is a SINGLE emoji character that unambiguously depicts the word (e.g. "cat" -> "🐱"). Only use "spelling_visual" when you can pick a very clear emoji; otherwise use "spelling_audio". imageHint is a short backup description.
 3. Never include proper nouns, violent imagery, or topics outside school math/spelling.
 4. Interleave types when the subjectMix is balanced. Prioritize weak/due skills.
 5. Each problem gets a 1-3 step hintLadder, increasingly concrete.
@@ -53,6 +53,11 @@ const EMIT_SESSION_TOOL = {
             expected: { type: "string" },
             sentence: { type: "string" },
             imageHint: { type: "string" },
+            emoji: {
+              type: "string",
+              description:
+                "A single emoji character depicting the word. Required for spelling_visual problems.",
+            },
             hintLadder: {
               type: "array",
               items: { type: "string" },
