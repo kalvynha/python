@@ -298,7 +298,7 @@ export function PlayClient() {
           correctAnswer={current.expected}
           hint={hintText}
         />
-        <div className="mt-2">
+        <div className="mt-6">
           {current.type === "math_arith" && (
             <MathProblem
               prompt={current.prompt}
