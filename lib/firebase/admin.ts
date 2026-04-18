@@ -3,6 +3,7 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let adminApp: App | null = null;
+let dbInstance: Firestore | null = null;
 
 function initAdmin(): App {
   if (adminApp) return adminApp;
@@ -29,7 +30,14 @@ export function adminAuth(): Auth {
 }
 
 export function adminDb(): Firestore {
-  return getFirestore(initAdmin());
+  if (dbInstance) return dbInstance;
+  const db = getFirestore(initAdmin());
+  // Drop `undefined` fields silently rather than throwing. Our resolver
+  // output contains optional fields (e.g. `sentence` on math problems)
+  // that shouldn't land in Firestore at all.
+  db.settings({ ignoreUndefinedProperties: true });
+  dbInstance = db;
+  return db;
 }
 
 /**
