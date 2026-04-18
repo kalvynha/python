@@ -10,22 +10,22 @@ runConfig:
 env:
   # Public Firebase config (available in the browser)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: ""
+    value: "AIzaSyDr6WFwnN0ZG7q0iwl4TlzW5ZfDJ87ukXA"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: ""
+    value: "carter-a645e.firebaseapp.com"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: ""
+    value: "carter-a645e"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: ""
+    value: "1:133114466249:web:4c7d67348e5e754229a218"
     availability:
       - BUILD
       - RUNTIME
