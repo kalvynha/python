@@ -61,11 +61,7 @@ npm test
    ```bash
    firebase apphosting:secrets:set FIREBASE_SERVICE_ACCOUNT_B64
    firebase apphosting:secrets:set ANTHROPIC_API_KEY
-   firebase apphosting:secrets:set PIXABAY_API_KEY
    ```
-   (Get a free Pixabay key at https://pixabay.com/api/docs/. It's used to
-   fetch kid-friendly illustrations for visual spelling problems, cached
-   once per word in Firestore's `imageCache` collection.)
 3. Fill the `NEXT_PUBLIC_FIREBASE_*` values in `apphosting.yaml` with your
    project's web app config (public by design).
 4. Connect this repo to a Firebase App Hosting backend:

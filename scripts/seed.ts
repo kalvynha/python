@@ -37,7 +37,6 @@ async function main() {
       seed: 42,
     });
     for (const it of items) {
-      // Split: half as audio, half as visual
       batch.set(db.collection("items").doc(`${it.id}:audio`), {
         id: `${it.id}:audio`,
         type: "spelling_audio",
@@ -48,17 +47,7 @@ async function main() {
         sentence: it.sentence,
         hintLadder: it.hintLadder,
       });
-      batch.set(db.collection("items").doc(`${it.id}:visual`), {
-        id: `${it.id}:visual`,
-        type: "spelling_visual",
-        skillTag: it.skillTag,
-        difficulty: it.difficulty,
-        prompt: it.word,
-        expected: it.word,
-        imageKey: it.word,
-        hintLadder: it.hintLadder,
-      });
-      count += 2;
+      count += 1;
     }
   }
 

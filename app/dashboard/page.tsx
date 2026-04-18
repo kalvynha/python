@@ -24,6 +24,9 @@ interface Kid {
   avatar: string;
   age: number;
   sessionDurationS: number;
+  currentStreak: number;
+  totalStars: number;
+  baselined: boolean;
 }
 
 export default function DashboardPage() {
@@ -111,13 +114,19 @@ async function ensureHouseholdAndLoad(
   setHid(hid);
   const kidsSnap = await getDocs(collection(db, "households", hid, "kids"));
   setKids(
-    kidsSnap.docs.map((d) => ({
-      id: d.id,
-      displayName: d.data().displayName,
-      avatar: d.data().avatar,
-      age: d.data().age,
-      sessionDurationS: d.data().sessionDurationS ?? 600,
-    }))
+    kidsSnap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        displayName: data.displayName,
+        avatar: data.avatar,
+        age: data.age,
+        sessionDurationS: data.sessionDurationS ?? 600,
+        currentStreak: data.currentStreak ?? 0,
+        totalStars: data.totalStars ?? 0,
+        baselined: data.baselined === true,
+      };
+    })
   );
 }
 
@@ -145,6 +154,9 @@ function AddKidForm({
       avatar,
       age,
       sessionDurationS: duration,
+      currentStreak: 0,
+      totalStars: 0,
+      baselined: false,
     };
     await setDoc(kidRef, {
       ...kid,

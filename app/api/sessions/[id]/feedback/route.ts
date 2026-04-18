@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { generateFeedback } from "@/lib/claude/feedbackGenerator";
 import { MODEL_SMART } from "@/lib/claude/client";
+import {
+  bucketBySkill,
+  clampLevel,
+  computeStars,
+  computeStreak,
+  proposeLevelDelta,
+} from "@/lib/srs/levelUpdate";
 
 export const runtime = "nodejs";
 
@@ -58,8 +66,39 @@ export async function POST(
       attempts,
     });
 
+    // ------------------------------------------------------------------
+    // Motivation + level rollups
+    // ------------------------------------------------------------------
+    const now = Date.now();
+    const stars = computeStars(attempts);
+    const streak = computeStreak(
+      kid.currentStreak ?? 0,
+      kid.lastSessionDay as string | undefined,
+      now
+    );
+
+    // Update skill levels for skills with enough evidence this session.
+    const buckets = bucketBySkill(attempts);
+    const levelsRef = kidRef.collection("skillLevels");
+    const levelWrites: Array<Promise<unknown>> = [];
+    for (const [tag, bucket] of Object.entries(buckets)) {
+      const delta = proposeLevelDelta(bucket);
+      if (delta === 0) continue;
+      const prev = await levelsRef.doc(tag).get();
+      const prevLevel = prev.exists ? (prev.data()!.level as number) ?? 2 : 2;
+      const nextLevel = clampLevel(prevLevel + delta);
+      if (nextLevel === prevLevel) continue;
+      levelWrites.push(
+        levelsRef.doc(tag).set(
+          { level: nextLevel, lastAssessedAt: now },
+          { merge: true }
+        )
+      );
+    }
+    await Promise.all(levelWrites);
+
     await sessionRef.set(
-      { endedAt: Date.now(), summaryState: "ready" },
+      { endedAt: now, summaryState: "ready", stars },
       { merge: true }
     );
     await sessionRef.collection("feedback").doc("summary").set({
@@ -68,13 +107,24 @@ export async function POST(
       focusSkills: fb.focusSkills,
       model: MODEL_SMART,
       tokenUsage: fb.usage,
-      createdAt: Date.now(),
+      createdAt: now,
     });
+
+    await kidRef.set(
+      {
+        currentStreak: streak.streak,
+        lastSessionDay: streak.lastSessionDay,
+        totalStars: FieldValue.increment(stars),
+      },
+      { merge: true }
+    );
 
     return NextResponse.json({
       kidSummary: fb.kidSummary,
       parentSummary: fb.parentSummary,
       focusSkills: fb.focusSkills,
+      stars,
+      streak: streak.streak,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";

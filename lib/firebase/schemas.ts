@@ -16,6 +16,13 @@ export const KidDoc = z.object({
   interleave: z.boolean().default(true),
   pinHash: z.string().optional(),
   createdAt: z.number(),
+  // Baseline assessment state: until `baselined` is true, /profiles sends
+  // the kid through /baseline before they can start a normal session.
+  baselined: z.boolean().default(false),
+  // Motivation state, maintained by the feedback route at session end.
+  currentStreak: z.number().int().nonnegative().default(0),
+  lastSessionDay: z.string().optional(), // ISO date YYYY-MM-DD
+  totalStars: z.number().int().nonnegative().default(0),
 });
 export type KidDoc = z.infer<typeof KidDoc>;
 
@@ -34,7 +41,7 @@ export const ReviewQueueDoc = z.object({
 });
 export type ReviewQueueDoc = z.infer<typeof ReviewQueueDoc>;
 
-export const ItemType = z.enum(["math_arith", "spelling_audio", "spelling_visual"]);
+export const ItemType = z.enum(["math_arith", "spelling_audio"]);
 export type ItemType = z.infer<typeof ItemType>;
 
 export const ItemDoc = z.object({
@@ -48,7 +55,6 @@ export const ItemDoc = z.object({
   expected: z.string(),
   // optional supporting content
   sentence: z.string().optional(), // for spelling_audio "use in sentence"
-  imageKey: z.string().optional(), // for spelling_visual
   hintLadder: z.array(z.string()).default([]),
 });
 export type ItemDoc = z.infer<typeof ItemDoc>;

@@ -2,13 +2,11 @@ import { z } from "zod";
 
 export const GeneratedProblem = z.object({
   id: z.string(),
-  type: z.enum(["math_arith", "spelling_audio", "spelling_visual"]),
+  type: z.enum(["math_arith", "spelling_audio"]),
   skillTag: z.string(),
   prompt: z.string(),
   expected: z.string(),
   sentence: z.string().optional(),
-  imageHint: z.string().optional(),
-  emoji: z.string().optional(),
   hintLadder: z.array(z.string()).max(3),
 });
 export type GeneratedProblem = z.infer<typeof GeneratedProblem>;

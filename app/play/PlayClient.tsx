@@ -7,19 +7,16 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { authedFetch } from "@/lib/client/authedFetch";
 import { MathProblem } from "@/components/kid/MathProblem";
 import { SpellingAudio } from "@/components/kid/SpellingAudio";
-import { SpellingVisual } from "@/components/kid/SpellingVisual";
 import { FeedbackBubble } from "@/components/kid/FeedbackBubble";
 import { ProgressRocket } from "@/components/kid/ProgressRocket";
 
 interface Problem {
   id: string;
-  type: "math_arith" | "spelling_audio" | "spelling_visual";
+  type: "math_arith" | "spelling_audio";
   skillTag: string;
   prompt: string;
   expected: string;
   sentence?: string;
-  imageHint?: string;
-  emoji?: string;
   hintLadder: string[];
 }
 
@@ -27,6 +24,8 @@ interface Summary {
   kidSummary: string;
   parentSummary: string;
   focusSkills: string[];
+  stars: number;
+  streak: number;
 }
 
 export function PlayClient() {
@@ -80,7 +79,22 @@ export function PlayClient() {
       <main className="mx-auto max-w-xl px-6 py-16 text-center">
         <div className="text-6xl">🎉</div>
         <h1 className="mt-4 text-3xl font-bold">All done!</h1>
-        <p className="mt-4 text-xl text-slate-700">{summary.kidSummary}</p>
+        <div className="mt-6 flex justify-center gap-2 text-5xl">
+          {[1, 2, 3].map((n) => (
+            <span
+              key={n}
+              className={n <= summary.stars ? "" : "grayscale opacity-30"}
+            >
+              ⭐
+            </span>
+          ))}
+        </div>
+        {summary.streak >= 2 && (
+          <p className="mt-4 text-lg text-amber-700">
+            🔥 {summary.streak}-day streak — keep it up!
+          </p>
+        )}
+        <p className="mt-6 text-xl text-slate-700">{summary.kidSummary}</p>
         <div className="mt-8 flex justify-center gap-3">
           <button onClick={() => router.push("/profiles")} className="btn-ghost">
             Back to profiles
@@ -160,15 +174,6 @@ export function PlayClient() {
         {current.type === "spelling_audio" && (
           <SpellingAudio
             word={current.prompt}
-            sentence={current.sentence}
-            onAnswer={answer}
-          />
-        )}
-        {current.type === "spelling_visual" && (
-          <SpellingVisual
-            word={current.prompt}
-            imageHint={current.imageHint}
-            emoji={current.emoji}
             sentence={current.sentence}
             onAnswer={answer}
           />
