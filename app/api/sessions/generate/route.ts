@@ -4,6 +4,11 @@ import { adminDb } from "@/lib/firebase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { generateSession } from "@/lib/claude/sessionGenerator";
 import { pickSessionItems } from "@/lib/srs/selector";
+import {
+  resolveSessionItems,
+  type ResolverItemMeta,
+  type ResolvedProblem,
+} from "@/lib/srs/resolver";
 import type { ReviewState } from "@/lib/srs/leitner";
 import { randomUUID } from "crypto";
 
@@ -13,6 +18,9 @@ const Body = z.object({
   kidId: z.string(),
   durationS: z.number().int().min(120).max(1800),
 });
+
+// Below this many resolved problems, fall back to Claude for the gap.
+const FALLBACK_THRESHOLD = 6;
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +45,6 @@ export async function POST(req: NextRequest) {
     }
     const kid = kidDoc.data()!;
 
-    // Pull review queue + skill levels
     const [reviewSnap, levelsSnap] = await Promise.all([
       kidRef.collection("reviewQueue").get(),
       kidRef.collection("skillLevels").get(),
@@ -49,13 +56,18 @@ export async function POST(req: NextRequest) {
       streak: d.data().streak ?? 0,
     }));
 
-    // Turn levels into a domain summary
     const levels = { math: 2, spelling: 2 };
     const weakSkillTags: string[] = [];
     levelsSnap.docs.forEach((d) => {
       const lvl = d.data().level ?? 2;
       const tag = d.id;
-      if (tag.startsWith("add") || tag.startsWith("sub") || tag.startsWith("mul") || tag.startsWith("div") || tag.startsWith("fractions")) {
+      if (
+        tag.startsWith("add") ||
+        tag.startsWith("sub") ||
+        tag.startsWith("mul") ||
+        tag.startsWith("div") ||
+        tag.startsWith("fractions")
+      ) {
         levels.math = Math.max(levels.math, lvl);
       } else {
         levels.spelling = Math.max(levels.spelling, lvl);
@@ -63,24 +75,33 @@ export async function POST(req: NextRequest) {
       if (lvl <= 1) weakSkillTags.push(tag);
     });
 
-    // Load minimal item metadata for selector (from /items)
+    // Load the full inventory so selector + resolver can reason about it.
     const itemsSnap = await db.collection("items").get();
-    const itemMeta: Record<string, { difficulty: number; domain: "math" | "spelling" }> = {};
-    const itemById: Record<string, { skillTag: string; prompt: string; expected: string }> = {};
+    const selectorMeta: Record<
+      string,
+      { difficulty: number; domain: "math" | "spelling" }
+    > = {};
+    const resolverMeta: Record<string, ResolverItemMeta> = {};
     itemsSnap.docs.forEach((d) => {
       const data = d.data();
-      const domain: "math" | "spelling" = data.type === "math_arith" ? "math" : "spelling";
-      itemMeta[d.id] = { difficulty: data.difficulty ?? 1, domain };
-      itemById[d.id] = {
+      const domain: "math" | "spelling" =
+        data.type === "math_arith" ? "math" : "spelling";
+      selectorMeta[d.id] = { difficulty: data.difficulty ?? 1, domain };
+      resolverMeta[d.id] = {
         skillTag: data.skillTag,
+        domain,
+        difficulty: data.difficulty ?? 1,
         prompt: data.prompt,
         expected: data.expected,
+        sentence: data.sentence,
+        hintLadder: data.hintLadder,
+        type: data.type,
       };
     });
 
-    const picked = pickSessionItems({
+    const picks = pickSessionItems({
       reviewQueue,
-      itemMeta,
+      itemMeta: selectorMeta,
       currentLevel: levels,
       subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
       durationS: body.durationS,
@@ -88,22 +109,73 @@ export async function POST(req: NextRequest) {
       now: Date.now(),
     });
 
-    const dueItems = picked
-      .filter((p) => p.reason === "review")
-      .map((p) => ({ itemId: p.itemId, ...itemById[p.itemId] }));
+    const sessionId = randomUUID();
+    const sessionSeed =
+      Date.now() ^ (sessionId.charCodeAt(0) + sessionId.charCodeAt(9));
 
-    const result = await generateSession({
-      kid: { age: kid.age ?? 7, displayName: kid.displayName ?? "friend" },
-      levels,
-      weakSkillTags,
-      dueItems,
-      subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
-      durationS: body.durationS,
-      interleave: kid.interleave ?? true,
+    const resolved = resolveSessionItems({
+      picks,
+      itemMeta: resolverMeta,
+      sessionSeed,
     });
 
-    // Persist the session document + planned items.
-    const sessionId = randomUUID();
+    let problems: ResolvedProblem[] = resolved.problems;
+    let claudeCount = 0;
+    let claudeUsage: {
+      inputTokens: number;
+      outputTokens: number;
+      cacheReadInputTokens?: number;
+    } | null = null;
+
+    const needsFallback =
+      problems.length < FALLBACK_THRESHOLD ||
+      resolved.unresolvedPicks.length > 0;
+
+    if (needsFallback) {
+      const dueItems = picks
+        .filter((p) => p.reason === "review")
+        .map((p) => {
+          const m = resolverMeta[p.itemId];
+          return {
+            itemId: p.itemId,
+            skillTag: m?.skillTag ?? "",
+            prompt: m?.prompt ?? "",
+            expected: m?.expected ?? "",
+          };
+        })
+        .filter((x) => x.skillTag && x.prompt);
+
+      const claudeResult = await generateSession({
+        kid: { age: kid.age ?? 7, displayName: kid.displayName ?? "friend" },
+        levels,
+        weakSkillTags,
+        dueItems,
+        subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
+        durationS: body.durationS,
+        interleave: kid.interleave ?? true,
+      });
+      claudeUsage = claudeResult.usage;
+      const extras: ResolvedProblem[] = claudeResult.problems.map((p) => ({
+        id: p.id,
+        type: p.type,
+        skillTag: p.skillTag,
+        prompt: p.prompt,
+        expected: p.expected,
+        sentence: p.sentence,
+        hintLadder: p.hintLadder,
+      }));
+      const deficit = Math.max(FALLBACK_THRESHOLD - problems.length, 0);
+      const need = Math.max(deficit, resolved.unresolvedPicks.length);
+      const filler = extras.slice(0, need);
+      problems = [...problems, ...filler];
+      claudeCount = filler.length;
+    }
+
+    const generationSource = {
+      ...resolved.source,
+      claude: claudeCount,
+    };
+
     await kidRef.collection("sessions").doc(sessionId).set({
       id: sessionId,
       kidId: body.kidId,
@@ -111,13 +183,14 @@ export async function POST(req: NextRequest) {
       endedAt: null,
       durationTargetS: body.durationS,
       subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
-      itemIdsPlanned: result.problems.map((p) => p.id),
+      itemIdsPlanned: problems.map((p) => p.id),
       summaryState: "pending",
-      problems: result.problems, // cache for the runner
-      usage: result.usage,
+      problems,
+      generationSource,
+      usage: claudeUsage,
     });
 
-    return NextResponse.json({ sessionId, problems: result.problems });
+    return NextResponse.json({ sessionId, problems });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     const status = msg.includes("bearer") ? 401 : 500;

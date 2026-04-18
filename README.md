@@ -93,14 +93,31 @@ Each session is a weighted mix:
 Math and spelling are interleaved when the subject mix is balanced
 (toggleable per kid).
 
+### Session resolution (inventory-first, Claude-fallback)
+
+After the selector picks items, `lib/srs/resolver.ts` turns each pick
+into a concrete problem in this order:
+
+1. **Procedural math** — calls `generateMathItems()` directly with a
+   per-session seed. Fresh math every session, zero AI cost.
+2. **Curated spelling inventory** — reads the pre-seeded `items/{id}`
+   doc; falls back to `generateSpellingItems()` from the curated word
+   bank if the inventory entry is incomplete.
+3. **Claude fallback** — only invoked when fewer than `FALLBACK_THRESHOLD`
+   problems resolved locally, or when a required skill tag is missing
+   from both inventory and the seed banks. In practice this almost
+   never fires.
+
+Each session's Firestore doc records a `generationSource: { procedural,
+inventory, claude }` count for telemetry.
+
 ### AI calls
 
-- `generateSession` (Haiku 4.5) takes the selector's picks plus kid
-  profile and produces a final problem list with per-problem hint
-  ladders. System prompt is cached.
 - `generateFeedback` (Sonnet 4.6) summarizes the session's attempts into
-  a short kid-facing message and a richer parent report, naming the 1–4
-  focus skills for next time.
+  a short kid-facing message and a richer parent report, naming the 1-4
+  focus skills for next time. **Called every session.**
+- `generateSession` (Haiku 4.5) is kept as a fallback for the resolver.
+  **Called only when the inventory can't satisfy the selector's picks.**
 
 ## Data model
 

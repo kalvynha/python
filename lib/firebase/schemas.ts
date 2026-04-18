@@ -82,6 +82,13 @@ export const SessionDoc = z.object({
   subjectMix: SubjectMix,
   itemIdsPlanned: z.array(z.string()),
   summaryState: z.enum(["pending", "ready"]).default("pending"),
+  generationSource: z
+    .object({
+      procedural: z.number().int().nonnegative(),
+      inventory: z.number().int().nonnegative(),
+      claude: z.number().int().nonnegative(),
+    })
+    .optional(),
 });
 export type SessionDoc = z.infer<typeof SessionDoc>;
 
