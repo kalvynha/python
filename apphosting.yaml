@@ -35,3 +35,5 @@ env:
     secret: ANTHROPIC_API_KEY
   - variable: FIREBASE_SERVICE_ACCOUNT_B64
     secret: FIREBASE_SERVICE_ACCOUNT_B64
+  - variable: PIXABAY_API_KEY
+    secret: PIXABAY_API_KEY

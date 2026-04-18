@@ -164,23 +164,15 @@ export function PlayClient() {
             onAnswer={answer}
           />
         )}
-        {current.type === "spelling_visual" &&
-          (current.emoji ? (
-            <SpellingVisual
-              word={current.prompt}
-              imageHint={current.imageHint}
-              emoji={current.emoji}
-              onAnswer={answer}
-            />
-          ) : (
-            // No emoji picked — fall back to audio mode so the kid has a
-            // usable cue instead of a letter placeholder.
-            <SpellingAudio
-              word={current.prompt}
-              sentence={current.sentence}
-              onAnswer={answer}
-            />
-          ))}
+        {current.type === "spelling_visual" && (
+          <SpellingVisual
+            word={current.prompt}
+            imageHint={current.imageHint}
+            emoji={current.emoji}
+            sentence={current.sentence}
+            onAnswer={answer}
+          />
+        )}
       </div>
       <FeedbackBubble state={state} correctAnswer={current.expected} />
     </main>

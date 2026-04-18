@@ -1,51 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { authedFetch } from "@/lib/client/authedFetch";
 
 interface Props {
   word: string;
   imageHint?: string;
   emoji?: string;
+  sentence?: string;
   onAnswer: (given: string) => void;
   disabled?: boolean;
 }
 
-// Minimal emoji fallback for an imageHint → picture. For MVP we match
-// a few common hints; otherwise show the first letter in a big circle.
-const EMOJI_MAP: Record<string, string> = {
-  cat: "🐱",
-  dog: "🐶",
-  pig: "🐷",
-  fish: "🐟",
-  star: "⭐",
-  tree: "🌳",
-  sun: "☀️",
-  moon: "🌙",
-  cake: "🍰",
-  bike: "🚲",
-  car: "🚗",
-  home: "🏠",
-  ship: "🚢",
-  rope: "🪢",
-  bone: "🦴",
-  corn: "🌽",
-  nut: "🌰",
-  egg: "🥚",
-  hat: "🎩",
-  bag: "👜",
-};
+function speak(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.85;
+  u.pitch = 1.1;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
 
+/**
+ * Visual spelling prompt. Tries Pixabay (via /api/images/lookup, which
+ * caches in Firestore) first; falls back to Claude-picked emoji; last
+ * resort is a letter placeholder.
+ */
 export function SpellingVisual({
   word,
   imageHint,
   emoji,
+  sentence,
   onAnswer,
   disabled,
 }: Props) {
   const [entry, setEntry] = useState("");
-  const shown =
-    emoji ?? EMOJI_MAP[(imageHint ?? word).toLowerCase()] ?? null;
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [imgState, setImgState] = useState<"loading" | "ready" | "missing">(
+    "loading"
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setImgState("loading");
+    setImgUrl(null);
+
+    const query = (imageHint ?? word).toLowerCase();
+    (async () => {
+      try {
+        const res = await authedFetch(
+          `/api/images/lookup?q=${encodeURIComponent(query)}`
+        );
+        if (!res.ok) throw new Error("lookup_failed");
+        const data = (await res.json()) as { url: string | null };
+        if (cancelled) return;
+        if (data.url) {
+          setImgUrl(data.url);
+          setImgState("ready");
+        } else {
+          setImgState("missing");
+        }
+      } catch {
+        if (!cancelled) setImgState("missing");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [word, imageHint]);
 
   return (
     <motion.div
@@ -55,11 +79,29 @@ export function SpellingVisual({
     >
       <div className="rounded-3xl bg-white p-8 shadow-md">
         <p className="text-slate-500 text-lg">What is this?</p>
-        <div className="mt-4 flex h-40 items-center justify-center rounded-2xl bg-sky-50 text-7xl">
-          {shown ?? (
-            <span className="text-slate-300 text-5xl font-bold">
-              {word[0].toUpperCase()}?
-            </span>
+        <div className="mt-4 flex h-48 items-center justify-center overflow-hidden rounded-2xl bg-sky-50 text-7xl">
+          {imgState === "ready" && imgUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imgUrl}
+              alt=""
+              className="max-h-full max-w-full object-contain"
+            />
+          ) : imgState === "loading" ? (
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-200 border-t-sky-500" />
+          ) : emoji ? (
+            <span>{emoji}</span>
+          ) : (
+            // No image and no emoji — offer audio so the kid has a cue.
+            <button
+              type="button"
+              onClick={() => speak(sentence ?? word)}
+              className="flex flex-col items-center gap-1 text-sky-600"
+              aria-label="Play the word"
+            >
+              <span className="text-5xl">🔊</span>
+              <span className="text-sm">Tap to hear</span>
+            </button>
           )}
         </div>
         <input
