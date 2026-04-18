@@ -61,7 +61,11 @@ npm test
    ```bash
    firebase apphosting:secrets:set FIREBASE_SERVICE_ACCOUNT_B64
    firebase apphosting:secrets:set ANTHROPIC_API_KEY
+   firebase apphosting:secrets:set ELEVENLABS_API_KEY
    ```
+   (Grab an ElevenLabs key at https://elevenlabs.io/api — free tier
+   covers ~30k characters/month and per-text results are cached in
+   Firestore's `audioCache` collection after the first request.)
 3. Fill the `NEXT_PUBLIC_FIREBASE_*` values in `apphosting.yaml` with your
    project's web app config (public by design).
 4. Connect this repo to a Firebase App Hosting backend:
