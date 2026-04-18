@@ -16,10 +16,16 @@ export const runtime = "nodejs";
 
 const Body = z.object({
   kidId: z.string(),
-  // Optional override — when absent we use kid.sessionDurationS. The
-  // client no longer sends this; it was a footgun that ignored the
-  // parent's configured duration.
+  // Optional override — when absent we use kid.sessionDurationS.
   durationS: z.number().int().min(120).max(1800).optional(),
+  // Per-session subject mix override. The kid picks math-only,
+  // spelling-only, or "both" (omit to use the parent-configured mix).
+  subjectMix: z
+    .object({
+      math: z.number().min(0).max(1),
+      spelling: z.number().min(0).max(1),
+    })
+    .optional(),
 });
 
 // Below this many resolved problems, fall back to Claude for the gap.
@@ -84,12 +90,16 @@ export async function POST(req: NextRequest) {
 
     const durationS =
       body.durationS ?? (kid.sessionDurationS as number | undefined) ?? 600;
+    const subjectMix =
+      body.subjectMix ??
+      (kid.subjectMix as { math: number; spelling: number } | undefined) ??
+      { math: 0.5, spelling: 0.5 };
 
     const picks = pickSessionItems({
       reviewQueue,
       itemMeta: selectorMeta,
       currentLevel: levels,
-      subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
+      subjectMix,
       durationS,
       interleave: kid.interleave ?? true,
       now: Date.now(),
@@ -136,7 +146,7 @@ export async function POST(req: NextRequest) {
         levels,
         weakSkillTags,
         dueItems,
-        subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
+        subjectMix,
         durationS,
         interleave: kid.interleave ?? true,
       });
@@ -223,7 +233,7 @@ export async function POST(req: NextRequest) {
       startedAt: Date.now(),
       endedAt: null,
       durationTargetS: durationS,
-      subjectMix: kid.subjectMix ?? { math: 0.5, spelling: 0.5 },
+      subjectMix,
       itemIdsPlanned: problems.map((p) => p.id),
       summaryState: "pending",
       problems,

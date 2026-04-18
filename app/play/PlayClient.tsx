@@ -17,6 +17,7 @@ import { FeedbackBubble } from "@/components/kid/FeedbackBubble";
 import { ProgressRocket } from "@/components/kid/ProgressRocket";
 import { SessionTimer } from "@/components/kid/SessionTimer";
 import { SessionGreeting } from "@/components/kid/SessionGreeting";
+import { SessionModePicker } from "@/components/kid/SessionModePicker";
 import { RewardTeaser } from "@/components/kid/RewardTeaser";
 import { NavBar } from "@/components/NavBar";
 
@@ -45,7 +46,8 @@ export function PlayClient() {
   const kidId = search.get("kidId");
 
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<null | "math" | "spelling" | "both">(null);
+  const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [kidName, setKidName] = useState<string>("");
   const [greetingDone, setGreetingDone] = useState(false);
@@ -79,12 +81,21 @@ export function PlayClient() {
   }, []);
 
   useEffect(() => {
-    if (!user || !kidId) return;
+    if (!user || !kidId || !mode) return;
     (async () => {
       setLoading(true);
+      // Translate the picker's choice into a subjectMix. "both" omits
+      // the override so the server falls back to the parent-configured
+      // mix (defaults to 50/50 if unset).
+      const subjectMix =
+        mode === "math"
+          ? { math: 1, spelling: 0 }
+          : mode === "spelling"
+            ? { math: 0, spelling: 1 }
+            : undefined;
       const res = await authedFetch("/api/sessions/generate", {
         method: "POST",
-        body: JSON.stringify({ kidId }),
+        body: JSON.stringify({ kidId, subjectMix }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -101,7 +112,7 @@ export function PlayClient() {
       sessionEndAtRef.current = Date.now() + durationS * 1000;
       setLoading(false);
     })();
-  }, [user, kidId, router]);
+  }, [user, kidId, mode, router]);
 
   // Fire confetti when the summary arrives.
   useEffect(() => {
@@ -121,7 +132,26 @@ export function PlayClient() {
     burst(3, 600);
   }, [summary]);
 
-  if (loading || !kidId) {
+  if (!kidId) {
+    return (
+      <main className="mx-auto max-w-xl px-6 py-20 text-center">
+        Missing kid id.
+      </main>
+    );
+  }
+
+  // First gate: let the kid pick what to practice today. No session is
+  // generated until they choose.
+  if (!mode) {
+    return (
+      <>
+        <NavBar backTo="/profiles" compact />
+        <SessionModePicker onPick={(m) => setMode(m)} />
+      </>
+    );
+  }
+
+  if (loading) {
     return (
       <>
         <NavBar
