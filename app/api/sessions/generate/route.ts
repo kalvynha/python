@@ -6,9 +6,9 @@ import { generateSession } from "@/lib/claude/sessionGenerator";
 import { pickSessionItems } from "@/lib/srs/selector";
 import {
   resolveSessionItems,
-  type ResolverItemMeta,
   type ResolvedProblem,
 } from "@/lib/srs/resolver";
+import { buildInventory } from "@/lib/srs/inventory";
 import type { ReviewState } from "@/lib/srs/leitner";
 import { randomUUID } from "crypto";
 
@@ -75,29 +75,9 @@ export async function POST(req: NextRequest) {
       if (lvl <= 1) weakSkillTags.push(tag);
     });
 
-    // Load the full inventory so selector + resolver can reason about it.
-    const itemsSnap = await db.collection("items").get();
-    const selectorMeta: Record<
-      string,
-      { difficulty: number; domain: "math" | "spelling" }
-    > = {};
-    const resolverMeta: Record<string, ResolverItemMeta> = {};
-    itemsSnap.docs.forEach((d) => {
-      const data = d.data();
-      const domain: "math" | "spelling" =
-        data.type === "math_arith" ? "math" : "spelling";
-      selectorMeta[d.id] = { difficulty: data.difficulty ?? 1, domain };
-      resolverMeta[d.id] = {
-        skillTag: data.skillTag,
-        domain,
-        difficulty: data.difficulty ?? 1,
-        prompt: data.prompt,
-        expected: data.expected,
-        sentence: data.sentence,
-        hintLadder: data.hintLadder,
-        type: data.type,
-      };
-    });
+    // Synthesize the inventory from curriculum seeds — no Firestore
+    // read, and every request has a full pool to pick from.
+    const { selectorMeta, resolverMeta } = buildInventory();
 
     const picks = pickSessionItems({
       reviewQueue,
