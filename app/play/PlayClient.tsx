@@ -16,6 +16,7 @@ import { SpellingAudio } from "@/components/kid/SpellingAudio";
 import { FeedbackBubble } from "@/components/kid/FeedbackBubble";
 import { ProgressRocket } from "@/components/kid/ProgressRocket";
 import { SessionTimer } from "@/components/kid/SessionTimer";
+import { SessionGreeting } from "@/components/kid/SessionGreeting";
 import { NavBar } from "@/components/NavBar";
 
 interface Problem {
@@ -45,6 +46,8 @@ export function PlayClient() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [kidName, setKidName] = useState<string>("");
+  const [greetingDone, setGreetingDone] = useState(false);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [idx, setIdx] = useState(0);
   const [misses, setMisses] = useState(0);
@@ -86,6 +89,7 @@ export function PlayClient() {
       }
       setProblems(data.problems);
       setSessionId(data.sessionId);
+      setKidName(data.kidName ?? "");
       const durationS = data.durationS ?? 600;
       sessionEndAtRef.current = Date.now() + durationS * 1000;
       setLoading(false);
@@ -185,6 +189,23 @@ export function PlayClient() {
             </button>
           </div>
         </main>
+      </>
+    );
+  }
+
+  if (!greetingDone) {
+    return (
+      <>
+        <NavBar
+          exitTo="/profiles"
+          exitLabel="Stop"
+          confirmExit="Stop this practice session? Your progress so far is saved."
+          compact
+        />
+        <SessionGreeting
+          name={kidName || "friend"}
+          onDone={() => setGreetingDone(true)}
+        />
       </>
     );
   }

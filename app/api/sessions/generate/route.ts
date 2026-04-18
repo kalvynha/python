@@ -206,7 +206,12 @@ export async function POST(req: NextRequest) {
       usage: claudeUsage,
     });
 
-    return NextResponse.json({ sessionId, problems, durationS });
+    return NextResponse.json({
+      sessionId,
+      problems,
+      durationS,
+      kidName: kid.displayName ?? "friend",
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     const status = msg.includes("bearer") ? 401 : 500;

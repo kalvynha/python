@@ -7,25 +7,25 @@ import { requireUser } from "@/lib/server/auth";
 export const runtime = "nodejs";
 
 /**
- * Generate (or serve cached) audio for a word or short sentence using
- * Google Cloud Text-to-Speech. Authenticates with the same service
- * account as firebase-admin (FIREBASE_SERVICE_ACCOUNT_B64).
+ * Google Cloud Text-to-Speech for spelling + math prompts.
  *
- * Requires on your GCP project:
- *   - Text-to-Speech API enabled
- *     (gcloud services enable texttospeech.googleapis.com)
- *   - The service account used for FIREBASE_SERVICE_ACCOUNT_B64 has
- *     the "Cloud Text-to-Speech API User" role (roles/cloudtts.user)
- *     or broader.
+ * Two input modes:
+ *   GET /api/tts?q=<text>   - plain text
+ *   GET /api/tts?s=<ssml>   - SSML for fine-grained prosody
  *
- * Results are cached per-text in Firestore at audioCache/{hash}.
- * Response: audio/mpeg.
- * Auth: Firebase ID token in Authorization header (prevents quota abuse).
+ * The SSML path lets the SessionGreeting render a Miss-Rachel-style
+ * delivery ("Hi, Ada! <break/> Let's GO!") without hard-coding markup
+ * on the server. Both paths share the same Firestore audio cache at
+ * audioCache/{sha256(voiceId + params + body)}.
+ *
+ * Authenticates with FIREBASE_SERVICE_ACCOUNT_B64; the GCP project
+ * must have Text-to-Speech API enabled and the service account must
+ * carry roles/serviceusage.serviceUsageConsumer (or Editor).
  */
 
-const VOICE_NAME = "en-US-Neural2-H"; // Friendly female Neural2 voice
-const SPEAKING_RATE = 0.9;
-const PITCH = 0;
+const VOICE_NAME = "en-US-Neural2-F"; // warm, friendly female — Miss-Rachel-ish
+const SPEAKING_RATE = 0.95;
+const PITCH = 2; // +2 semitones — a touch brighter / more upbeat
 
 let _client: ReturnType<typeof makeClient> | null = null;
 function makeClient() {
@@ -47,13 +47,16 @@ function getClient() {
 export async function GET(req: NextRequest) {
   try {
     await requireUser(req);
-    const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
-    if (!q || q.length > 200) {
+    const ssml = req.nextUrl.searchParams.get("s");
+    const q = req.nextUrl.searchParams.get("q");
+    const body = (ssml ?? q ?? "").trim();
+    if (!body || body.length > 800) {
       return NextResponse.json({ error: "bad_query" }, { status: 400 });
     }
 
+    const mode = ssml ? "ssml" : "text";
     const cacheKey = createHash("sha256")
-      .update(`${VOICE_NAME}:${SPEAKING_RATE}:${PITCH}:${q}`)
+      .update(`${VOICE_NAME}:${SPEAKING_RATE}:${PITCH}:${mode}:${body}`)
       .digest("hex");
 
     const db = adminDb();
@@ -61,17 +64,14 @@ export async function GET(req: NextRequest) {
 
     const cached = await cacheRef.get();
     if (cached.exists) {
-      const { b64 } = cached.data() as { b64: string };
-      return audioResponse(Buffer.from(b64, "base64"));
+      const { b64: cachedB64 } = cached.data() as { b64: string };
+      return audioResponse(Buffer.from(cachedB64, "base64"));
     }
 
     const client = getClient();
     const [resp] = await client.synthesizeSpeech({
-      input: { text: q },
-      voice: {
-        languageCode: "en-US",
-        name: VOICE_NAME,
-      },
+      input: ssml ? { ssml } : { text: q ?? "" },
+      voice: { languageCode: "en-US", name: VOICE_NAME },
       audioConfig: {
         audioEncoding: "MP3",
         speakingRate: SPEAKING_RATE,
@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
 
     await cacheRef.set({
       b64: buf.toString("base64"),
-      text: q,
+      mode,
+      body: body.slice(0, 240),
       voiceName: VOICE_NAME,
       fetchedAt: Date.now(),
     });

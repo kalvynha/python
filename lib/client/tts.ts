@@ -19,6 +19,22 @@ export async function fetchTTS(text: string): Promise<string | null> {
   }
 }
 
+/**
+ * Same as fetchTTS but sends SSML for fine-grained prosody (breaks,
+ * pitch bumps, emphasis). Use for intros/celebrations where the
+ * delivery matters more than just "speak this word".
+ */
+export async function fetchTTSSSML(ssml: string): Promise<string | null> {
+  try {
+    const res = await authedFetch(`/api/tts?s=${encodeURIComponent(ssml)}`);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
+
 /** Convert math symbols to spoken words so TTS sounds natural. */
 export function expressionToWords(expr: string): string {
   return expr
